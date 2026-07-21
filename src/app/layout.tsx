@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Feedback",
-  description: "Feedback collection and review system powered by Supabase.",
+  title: "AI Feedback Review",
+  description: "Compare highlighted AI results with actual values.",
 };
 
 export default function RootLayout({
