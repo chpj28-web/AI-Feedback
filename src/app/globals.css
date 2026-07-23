@@ -80,7 +80,16 @@ body {
   .mobile-table-frame {
     margin-inline: -0.25rem;
     border-radius: 0.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
     box-shadow: inset -18px 0 22px -24px rgba(239, 62, 143, 0.72);
+  }
+
+  .mobile-table-scroll {
+    min-width: max-content;
   }
 
   .feedback-table {

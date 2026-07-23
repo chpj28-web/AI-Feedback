@@ -1394,8 +1394,8 @@ function ComparisonCard({
         <StatusFilterBox values={statusFilters} onChange={setStatusFilters} />
       </div>
 
-        <div className="mobile-table-frame overflow-hidden rounded-lg border border-[#dfe6ef]">
-          <div className="max-h-[640px] overflow-auto">
+        <div className="mobile-table-frame rounded-lg border border-[#dfe6ef]">
+          <div className="mobile-table-scroll max-h-[640px] overflow-auto">
           <table className="feedback-table w-full min-w-[1080px] border-collapse text-sm">
             <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
               <tr>
@@ -1989,8 +1989,8 @@ function TransferComparison({
           />
         </div>
 
-        <div className="mobile-table-frame overflow-hidden rounded-lg border border-[#dfe6ef]">
-          <div className="max-h-[680px] overflow-auto">
+        <div className="mobile-table-frame rounded-lg border border-[#dfe6ef]">
+          <div className="mobile-table-scroll max-h-[680px] overflow-auto">
             <table className="transfer-table w-full min-w-[1360px] border-collapse text-sm">
               <colgroup>
                 <col />
