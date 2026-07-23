@@ -1,251 +1,1491 @@
 {
-  "3. FC,QT|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|FC (kg)": {
-    "actual": "489724.1206",
+  "1. ปริมาณตัดแต่ง|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "5739.5",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|QT (kg)": {
-    "actual": "464116.6713",
+  "1. ปริมาณตัดแต่ง|โรงชำแหละสุกรบางคล้า|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "3685",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงชำแหละสุกรบางคล้า|FC (kg)": {
-    "actual": "434242.5225",
+  "1. ปริมาณตัดแต่ง|โรงชำแหละสุกรแปดริ้ว|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "2329",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงชำแหละสุกรบางคล้า|QT (kg)": {
-    "actual": "388940.8133",
+  "1. ปริมาณตัดแต่ง|โรงชำแหละสุกรพระพุทธบาท|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "3216.5",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงชำแหละสุกรแปดริ้ว|FC (kg)": {
-    "actual": "868673.1706",
+  "1. ปริมาณตัดแต่ง|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "1830",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงชำแหละสุกรแปดริ้ว|QT (kg)": {
-    "actual": "532550.1575",
+  "1. ปริมาณตัดแต่ง|ศูนย์ตัดแต่ง-บางปลากด|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "2090",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงชำแหละสุกรพระพุทธบาท|FC (kg)": {
-    "actual": "356233.5922",
+  "1. ปริมาณตัดแต่ง|Cc Pork Shop คลองหลวง|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "404",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงชำแหละสุกรพระพุทธบาท|QT (kg)": {
-    "actual": "349245.8922",
+  "1. ปริมาณตัดแต่ง|CPFT - โรงชำแหละห้วยส้ม|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "5488",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|FC (kg)": {
-    "actual": "158494.3119",
+  "1. ปริมาณตัดแต่ง|CPFT-EA-ขาย-รชล.นายายอาม|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "2744",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|QT (kg)": {
-    "actual": "151888.3061",
+  "1. ปริมาณตัดแต่ง|CPFT-EA-ขาย-รชล.ปลวกแดง|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "913.5",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|ศูนย์ตัดแต่ง-บางปลากด|FC (kg)": {
-    "actual": "244261.8147",
+  "1. ปริมาณตัดแต่ง|CPFT-EA-ขาย-รชล.สระแก้ว|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "1910",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|ศูนย์ตัดแต่ง-บางปลากด|QT (kg)": {
-    "actual": "182650.0139",
+  "1. ปริมาณตัดแต่ง|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "214",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|ศูนย์ตัดแต่ง-รังสิต|FC (kg)": {
-    "actual": "29476.9633",
+  "1. ปริมาณตัดแต่ง|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "4019.5",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|ศูนย์ตัดแต่ง-รังสิต|QT (kg)": {
-    "actual": "25333.3704",
+  "1. ปริมาณตัดแต่ง|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "3538",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|Cc Pork Shop คลองหลวง|FC (kg)": {
-    "actual": "32964",
+  "1. ปริมาณตัดแต่ง|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "2421",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|Cc Pork Shop คลองหลวง|QT (kg)": {
+  "1. ปริมาณตัดแต่ง|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "3135",
+    "accuracy": "",
+    "comment": ""
+  },
+  "1. ปริมาณตัดแต่ง|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "1210",
+    "accuracy": "",
+    "comment": ""
+  },
+  "1. ปริมาณตัดแต่ง|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "4727",
+    "accuracy": "",
+    "comment": ""
+  },
+  "1. ปริมาณตัดแต่ง|DM-SO-สุกร-รชล-กระบี่|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "6360",
+    "accuracy": "",
+    "comment": ""
+  },
+  "1. ปริมาณตัดแต่ง|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "640",
+    "accuracy": "",
+    "comment": ""
+  },
+  "1. ปริมาณตัดแต่ง|FMB-Hub ลาดหลุมแก้ว|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "1165",
+    "accuracy": "",
+    "comment": ""
+  },
+  "1. ปริมาณตัดแต่ง|FMC-รง.แปรรูปบางน้ำจืด|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "3152",
+    "accuracy": "",
+    "comment": ""
+  },
+  "1. ปริมาณตัดแต่ง|FMCE-Dummy-รชล-พนมทวน|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "4191",
+    "accuracy": "",
+    "comment": ""
+  },
+  "1. ปริมาณตัดแต่ง|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|จำนวนหมูเข้าตัดแต่ง (head)": {
+    "actual": "1755",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|ของขาด-เหลือ (kg)": {
+    "actual": "742872.1982",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|Production (kg)": {
+    "actual": "511640.92",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|Quota (kg)": {
+    "actual": "418030.8398",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|Stock ยกมา (kg)": {
+    "actual": "736653.91",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|Total Supply (kg)": {
+    "actual": "1183259",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|Transfer in (kg)": {
+    "actual": "3854",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|Transfer out (kg)": {
+    "actual": "68889.83",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรบางคล้า|ของขาด-เหลือ (kg)": {
+    "actual": "311323.7682",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรบางคล้า|Production (kg)": {
+    "actual": "396080.38",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรบางคล้า|Quota (kg)": {
+    "actual": "351833.9497",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรบางคล้า|Stock ยกมา (kg)": {
+    "actual": "351920.66",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรบางคล้า|Total Supply (kg)": {
+    "actual": "705884.54",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรบางคล้า|Transfer in (kg)": {
+    "actual": "31677.56",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรบางคล้า|Transfer out (kg)": {
+    "actual": "73794.06",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรแปดริ้ว|ของขาด-เหลือ (kg)": {
+    "actual": "-194586.8909",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรแปดริ้ว|Production (kg)": {
+    "actual": "167757.3",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรแปดริ้ว|Quota (kg)": {
+    "actual": "483127.545",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรแปดริ้ว|Stock ยกมา (kg)": {
+    "actual": "334278",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรแปดริ้ว|Total Supply (kg)": {
+    "actual": "603562.01",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรแปดริ้ว|Transfer in (kg)": {
+    "actual": "128696.42",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรแปดริ้ว|Transfer out (kg)": {
+    "actual": "27169.71",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรพระพุทธบาท|ของขาด-เหลือ (kg)": {
+    "actual": "429186.3201",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรพระพุทธบาท|Production (kg)": {
+    "actual": "297627.72",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรพระพุทธบาท|Quota (kg)": {
+    "actual": "306769.9999",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรพระพุทธบาท|Stock ยกมา (kg)": {
+    "actual": "433616.23",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรพระพุทธบาท|Total Supply (kg)": {
+    "actual": "742186.62",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรพระพุทธบาท|Transfer in (kg)": {
+    "actual": "34501.46",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงชำแหละสุกรพระพุทธบาท|Transfer out (kg)": {
+    "actual": "23558.79",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|ของขาด-เหลือ (kg)": {
+    "actual": "177517.2",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|Production (kg)": {
+    "actual": "149230.1",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|Quota (kg)": {
+    "actual": "133476",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|Stock ยกมา (kg)": {
+    "actual": "170843.11",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|Total Supply (kg)": {
+    "actual": "317420.2",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|Transfer in (kg)": {
+    "actual": "48314.61",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|Transfer out (kg)": {
+    "actual": "50967.62",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-บางปลากด|ของขาด-เหลือ (kg)": {
+    "actual": "26412.2299",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-บางปลากด|Production (kg)": {
+    "actual": "191546.73",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-บางปลากด|Quota (kg)": {
+    "actual": "159392.9202",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-บางปลากด|Stock ยกมา (kg)": {
+    "actual": "58938.86",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-บางปลากด|Total Supply (kg)": {
+    "actual": "240869.88",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-บางปลากด|Transfer in (kg)": {
+    "actual": "4175.35",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-บางปลากด|Transfer out (kg)": {
+    "actual": "13791.06",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-รังสิต|ของขาด-เหลือ (kg)": {
+    "actual": "-24644.2391",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-รังสิต|Production (kg)": {
+    "actual": "0",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-รังสิต|Quota (kg)": {
+    "actual": "20831.48",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-รังสิต|Stock ยกมา (kg)": {
+    "actual": "0",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-รังสิต|Total Supply (kg)": {
+    "actual": "0",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-รังสิต|Transfer in (kg)": {
+    "actual": "0",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|ศูนย์ตัดแต่ง-รังสิต|Transfer out (kg)": {
+    "actual": "0",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|Cc Pork Shop คลองหลวง|ของขาด-เหลือ (kg)": {
+    "actual": "76720.87",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|Cc Pork Shop คลองหลวง|Production (kg)": {
+    "actual": "37627.23",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|Cc Pork Shop คลองหลวง|Quota (kg)": {
     "actual": "25893.65",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT - โรงชำแหละห้วยส้ม|FC (kg)": {
-    "actual": "625529.312",
+  "2. ปริมาณ Supply|Cc Pork Shop คลองหลวง|Stock ยกมา (kg)": {
+    "actual": "43465.29",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT - โรงชำแหละห้วยส้ม|QT (kg)": {
-    "actual": "588030.4773",
+  "2. ปริมาณ Supply|Cc Pork Shop คลองหลวง|Total Supply (kg)": {
+    "actual": "109684.87",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-EA-ขาย-รชล.นายายอาม|FC (kg)": {
-    "actual": "333933.1679",
+  "2. ปริมาณ Supply|Cc Pork Shop คลองหลวง|Transfer in (kg)": {
+    "actual": "31433.74",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-EA-ขาย-รชล.นายายอาม|QT (kg)": {
-    "actual": "311568.3796",
+  "2. ปริมาณ Supply|Cc Pork Shop คลองหลวง|Transfer out (kg)": {
+    "actual": "2841.39",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-EA-ขาย-รชล.ปลวกแดง|FC (kg)": {
-    "actual": "91026.7589",
+  "2. ปริมาณ Supply|CPFT - โรงชำแหละห้วยส้ม|ของขาด-เหลือ (kg)": {
+    "actual": "21146.4804",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-EA-ขาย-รชล.ปลวกแดง|QT (kg)": {
-    "actual": "77015.9407",
+  "2. ปริมาณ Supply|CPFT - โรงชำแหละห้วยส้ม|Production (kg)": {
+    "actual": "415551.1",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-EA-ขาย-รชล.สระแก้ว|FC (kg)": {
-    "actual": "180276.8244",
+  "2. ปริมาณ Supply|CPFT - โรงชำแหละห้วยส้ม|Quota (kg)": {
+    "actual": "518930.2696",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-EA-ขาย-รชล.สระแก้ว|QT (kg)": {
-    "actual": "168495.1729",
+  "2. ปริมาณ Supply|CPFT - โรงชำแหละห้วยส้ม|Stock ยกมา (kg)": {
+    "actual": "54245.19",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|FC (kg)": {
-    "actual": "29027",
+  "2. ปริมาณ Supply|CPFT - โรงชำแหละห้วยส้ม|Total Supply (kg)": {
+    "actual": "577098.78",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|QT (kg)": {
-    "actual": "28827",
+  "2. ปริมาณ Supply|CPFT - โรงชำแหละห้วยส้ม|Transfer in (kg)": {
+    "actual": "107302.49",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|FC (kg)": {
-    "actual": "438275.8713",
+  "2. ปริมาณ Supply|CPFT - โรงชำแหละห้วยส้ม|Transfer out (kg)": {
+    "actual": "0",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|QT (kg)": {
-    "actual": "395159.7054",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.นายายอาม|ของขาด-เหลือ (kg)": {
+    "actual": "370644.0001",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|FC (kg)": {
-    "actual": "324600.915",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.นายายอาม|Production (kg)": {
+    "actual": "277355.28",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|QT (kg)": {
-    "actual": "313917.0373",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.นายายอาม|Quota (kg)": {
+    "actual": "269835.0399",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|FC (kg)": {
-    "actual": "251307.1095",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.นายายอาม|Stock ยกมา (kg)": {
+    "actual": "360062.09",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|QT (kg)": {
-    "actual": "240166.8535",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.นายายอาม|Total Supply (kg)": {
+    "actual": "659320.08",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|FC (kg)": {
-    "actual": "385226.5409",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.นายายอาม|Transfer in (kg)": {
+    "actual": "29209.34",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|QT (kg)": {
-    "actual": "363869.0656",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.นายายอาม|Transfer out (kg)": {
+    "actual": "7306.63",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|FC (kg)": {
-    "actual": "225852.1748",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.ปลวกแดง|ของขาด-เหลือ (kg)": {
+    "actual": "33839.232",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|QT (kg)": {
-    "actual": "176393.1942",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.ปลวกแดง|Production (kg)": {
+    "actual": "79523.93",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|FC (kg)": {
-    "actual": "523535.6124",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.ปลวกแดง|Quota (kg)": {
+    "actual": "66151.74",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|QT (kg)": {
-    "actual": "495725.7771",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.ปลวกแดง|Stock ยกมา (kg)": {
+    "actual": "47742.63",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|DM-SO-สุกร-รชล-กระบี่|FC (kg)": {
-    "actual": "812156.8866",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.ปลวกแดง|Total Supply (kg)": {
+    "actual": "110594.91",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|DM-SO-สุกร-รชล-กระบี่|QT (kg)": {
-    "actual": "774004.7956",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.ปลวกแดง|Transfer in (kg)": {
+    "actual": "5406.65",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|FC (kg)": {
-    "actual": "102980.1415",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.ปลวกแดง|Transfer out (kg)": {
+    "actual": "22078.3",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|QT (kg)": {
-    "actual": "76025.611",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.สระแก้ว|ของขาด-เหลือ (kg)": {
+    "actual": "250512.5127",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|FMB-Hub ลาดหลุมแก้ว|FC (kg)": {
-    "actual": "160882.6285",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.สระแก้ว|Production (kg)": {
+    "actual": "173981.25",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|FMB-Hub ลาดหลุมแก้ว|QT (kg)": {
-    "actual": "140330.0348",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.สระแก้ว|Quota (kg)": {
+    "actual": "147791.6903",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|FMC-รง.แปรรูปบางน้ำจืด|FC (kg)": {
-    "actual": "291851.7282",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.สระแก้ว|Stock ยกมา (kg)": {
+    "actual": "250883.51",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|FMC-รง.แปรรูปบางน้ำจืด|QT (kg)": {
-    "actual": "249863.692",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.สระแก้ว|Total Supply (kg)": {
+    "actual": "407886.32",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|FMCE-Dummy-รชล-พนมทวน|FC (kg)": {
-    "actual": "511904.9342",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.สระแก้ว|Transfer in (kg)": {
+    "actual": "10080.72",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|FMCE-Dummy-รชล-พนมทวน|QT (kg)": {
-    "actual": "488498.6758",
+  "2. ปริมาณ Supply|CPFT-EA-ขาย-รชล.สระแก้ว|Transfer out (kg)": {
+    "actual": "27059.16",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|FC (kg)": {
-    "actual": "226523.3023",
+  "2. ปริมาณ Supply|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|ของขาด-เหลือ (kg)": {
+    "actual": "6929.81",
     "accuracy": "",
     "comment": ""
   },
-  "3. FC,QT|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|QT (kg)": {
-    "actual": "222942.3023",
+  "2. ปริมาณ Supply|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|Production (kg)": {
+    "actual": "49937.47",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|Quota (kg)": {
+    "actual": "26903",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|Stock ยกมา (kg)": {
+    "actual": "10479.95",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|Total Supply (kg)": {
+    "actual": "34032.81",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|Transfer in (kg)": {
+    "actual": "0",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-MD-ขาย-HUB-รชล-อ่างทอง|Transfer out (kg)": {
+    "actual": "26384.61",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|ของขาด-เหลือ (kg)": {
+    "actual": "525086.9197",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|Production (kg)": {
+    "actual": "331480.29",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|Quota (kg)": {
+    "actual": "348458.9603",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|Stock ยกมา (kg)": {
+    "actual": "597169.04",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|Total Supply (kg)": {
+    "actual": "914937.82",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|Transfer in (kg)": {
+    "actual": "22303.47",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|Transfer out (kg)": {
+    "actual": "36014.98",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|ของขาด-เหลือ (kg)": {
+    "actual": "825636.6919",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|Production (kg)": {
+    "actual": "275271.56",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|Quota (kg)": {
+    "actual": "279426.2601",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|Stock ยกมา (kg)": {
+    "actual": "857742.61",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|Total Supply (kg)": {
+    "actual": "1115081",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|Transfer in (kg)": {
+    "actual": "18888.75",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|Transfer out (kg)": {
+    "actual": "36821.92",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ของขาด-เหลือ (kg)": {
+    "actual": "398976.604",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|Production (kg)": {
+    "actual": "256739.55",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|Quota (kg)": {
+    "actual": "218885.28",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|Stock ยกมา (kg)": {
+    "actual": "366612.26",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|Total Supply (kg)": {
+    "actual": "629002.1",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|Transfer in (kg)": {
+    "actual": "25853.69",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|Transfer out (kg)": {
+    "actual": "20203.4",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|ของขาด-เหลือ (kg)": {
+    "actual": "424681.8998",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|Production (kg)": {
+    "actual": "309846.7",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|Quota (kg)": {
+    "actual": "328039.0202",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|Stock ยกมา (kg)": {
+    "actual": "420477.44",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|Total Supply (kg)": {
+    "actual": "773343.9",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|Transfer in (kg)": {
+    "actual": "60304.46",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|Transfer out (kg)": {
+    "actual": "17284.7",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|ของขาด-เหลือ (kg)": {
+    "actual": "72944.7203",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|Production (kg)": {
+    "actual": "212373.91",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|Quota (kg)": {
+    "actual": "158524.0097",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|Stock ยกมา (kg)": {
+    "actual": "131223.23",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|Total Supply (kg)": {
+    "actual": "277245.72",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|Transfer in (kg)": {
+    "actual": "4221.97",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|Transfer out (kg)": {
+    "actual": "70573.39",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|ของขาด-เหลือ (kg)": {
+    "actual": "956222.2535",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|Production (kg)": {
+    "actual": "452730.17",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|Quota (kg)": {
+    "actual": "439912.3104",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|Stock ยกมา (kg)": {
+    "actual": "1028736.89",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|Total Supply (kg)": {
+    "actual": "1420152.38",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|Transfer in (kg)": {
+    "actual": "727.4",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-โรงชำแหละและตัดแต่งกำแพงเพชร|Transfer out (kg)": {
+    "actual": "62042.08",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-กระบี่|ของขาด-เหลือ (kg)": {
+    "actual": "444822.7001",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-กระบี่|Production (kg)": {
+    "actual": "617330.72",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-กระบี่|Quota (kg)": {
+    "actual": "669409.3199",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-กระบี่|Stock ยกมา (kg)": {
+    "actual": "536914.7",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-กระบี่|Total Supply (kg)": {
+    "actual": "1149378.9",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-กระบี่|Transfer in (kg)": {
+    "actual": "7761.78",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-กระบี่|Transfer out (kg)": {
+    "actual": "12628.3",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|ของขาด-เหลือ (kg)": {
+    "actual": "46914.8503",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|Production (kg)": {
+    "actual": "66779.96",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|Quota (kg)": {
+    "actual": "69025.9998",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|Stock ยกมา (kg)": {
+    "actual": "63842.14",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|Total Supply (kg)": {
+    "actual": "141359.85",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|Transfer in (kg)": {
+    "actual": "10737.75",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|DM-SO-สุกร-รชล-มะกอกเหนือ-พท|Transfer out (kg)": {
+    "actual": "0",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMB-Hub ลาดหลุมแก้ว|ของขาด-เหลือ (kg)": {
+    "actual": "161284.5087",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMB-Hub ลาดหลุมแก้ว|Production (kg)": {
+    "actual": "103074.42",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMB-Hub ลาดหลุมแก้ว|Quota (kg)": {
+    "actual": "122817.55",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMB-Hub ลาดหลุมแก้ว|Stock ยกมา (kg)": {
+    "actual": "178673.41",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMB-Hub ลาดหลุมแก้ว|Total Supply (kg)": {
+    "actual": "303195.02",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMB-Hub ลาดหลุมแก้ว|Transfer in (kg)": {
+    "actual": "36129.53",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMB-Hub ลาดหลุมแก้ว|Transfer out (kg)": {
+    "actual": "14682.34",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMC-รง.แปรรูปบางน้ำจืด|ของขาด-เหลือ (kg)": {
+    "actual": "108157.5433",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMC-รง.แปรรูปบางน้ำจืด|Production (kg)": {
+    "actual": "237279.55",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMC-รง.แปรรูปบางน้ำจืด|Quota (kg)": {
+    "actual": "221258.8197",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMC-รง.แปรรูปบางน้ำจืด|Stock ยกมา (kg)": {
+    "actual": "134165.61",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMC-รง.แปรรูปบางน้ำจืด|Total Supply (kg)": {
+    "actual": "370430.37",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMC-รง.แปรรูปบางน้ำจืด|Transfer in (kg)": {
+    "actual": "15442.01",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMC-รง.แปรรูปบางน้ำจืด|Transfer out (kg)": {
+    "actual": "16456.8",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMCE-Dummy-รชล-พนมทวน|ของขาด-เหลือ (kg)": {
+    "actual": "798555.1086",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMCE-Dummy-รชล-พนมทวน|Production (kg)": {
+    "actual": "387428.01",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMCE-Dummy-รชล-พนมทวน|Quota (kg)": {
+    "actual": "448924.9901",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMCE-Dummy-รชล-พนมทวน|Stock ยกมา (kg)": {
+    "actual": "916885.91",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMCE-Dummy-รชล-พนมทวน|Total Supply (kg)": {
+    "actual": "1269340.29",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMCE-Dummy-รชล-พนมทวน|Transfer in (kg)": {
+    "actual": "3457.92",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|FMCE-Dummy-รชล-พนมทวน|Transfer out (kg)": {
+    "actual": "38431.55",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|ของขาด-เหลือ (kg)": {
+    "actual": "317342.9499",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|Production (kg)": {
+    "actual": "176900.58",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|Quota (kg)": {
+    "actual": "199055.0001",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|Stock ยกมา (kg)": {
+    "actual": "324851.61",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|Total Supply (kg)": {
+    "actual": "519796.95",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|Transfer in (kg)": {
+    "actual": "56111.56",
+    "accuracy": "",
+    "comment": ""
+  },
+  "2. ปริมาณ Supply|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|Transfer out (kg)": {
+    "actual": "38066.8",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "9313.25",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ -> โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|ปริมาณแนะนำโอน (kg)": {
+    "actual": "12841.03",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|ปริมาณแนะนำโอน (kg)": {
+    "actual": "17490.88",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|ปริมาณแนะนำโอน (kg)": {
+    "actual": "8010.24",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "5226.28",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ -> CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|ปริมาณแนะนำโอน (kg)": {
+    "actual": "33099.61",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1512.23",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ -> NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|ปริมาณแนะนำโอน (kg)": {
+    "actual": "18026.81",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรบางคล้า -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "52694",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรบางคล้า -> โรงชำแหละสุกรพระพุทธบาท|ปริมาณแนะนำโอน (kg)": {
+    "actual": "3004.4",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรบางคล้า -> CPFT-EA-ขาย-รชล.นายายอาม|ปริมาณแนะนำโอน (kg)": {
+    "actual": "5490.14",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรบางคล้า -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|ปริมาณแนะนำโอน (kg)": {
+    "actual": "480",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรบางคล้า -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1003.35",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรแปดริ้ว -> โรงชำแหละสุกรบางคล้า|ปริมาณแนะนำโอน (kg)": {
+    "actual": "20289.75",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรแปดริ้ว -> โรงชำแหละสุกรพระพุทธบาท|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2230.33",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรแปดริ้ว -> ศูนย์ตัดแต่ง-บางปลากด|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1140.1",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรแปดริ้ว -> Cc Pork Shop คลองหลวง|ปริมาณแนะนำโอน (kg)": {
+    "actual": "908.4",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรแปดริ้ว -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "4280.96",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรแปดริ้ว -> FMC-รง.แปรรูปบางน้ำจืด|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2874.62",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรแปดริ้ว -> FMCE-Dummy-รชล-พนมทวน|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2336.4",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรพระพุทธบาท -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "15676.41",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรพระพุทธบาท -> Cc Pork Shop คลองหลวง|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1098.5",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรพระพุทธบาท -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2234.52",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรพระพุทธบาท -> CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2495.32",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรพระพุทธบาท -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2057.49",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงชำแหละสุกรพระพุทธบาท -> FMCE-Dummy-รชล-พนมทวน|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1492.7",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "7470.1",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา -> โรงชำแหละสุกรพระพุทธบาท|ปริมาณแนะนำโอน (kg)": {
+    "actual": "12218.99",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา -> Cc Pork Shop คลองหลวง|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1405.89",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|ปริมาณแนะนำโอน (kg)": {
+    "actual": "501.57",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|ปริมาณแนะนำโอน (kg)": {
+    "actual": "3770.51",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "3810.51",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา -> CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|ปริมาณแนะนำโอน (kg)": {
+    "actual": "21.24",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|โรงตัดแต่ง-สุกร จอหอ นครราชสีมา -> FMCE-Dummy-รชล-พนมทวน|ปริมาณแนะนำโอน (kg)": {
+    "actual": "508.7",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|ศูนย์ตัดแต่ง-บางปลากด -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|ศูนย์ตัดแต่ง-บางปลากด -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "5442.31",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|ศูนย์ตัดแต่ง-บางปลากด -> FMC-รง.แปรรูปบางน้ำจืด|ปริมาณแนะนำโอน (kg)": {
+    "actual": "14937.6",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|Cc Pork Shop คลองหลวง -> ศูนย์ตัดแต่ง-บางปลากด|ปริมาณแนะนำโอน (kg)": {
+    "actual": "16.83",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|Cc Pork Shop คลองหลวง -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2824.56",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-EA-ขาย-รชล.นายายอาม -> CPFT-EA-ขาย-รชล.สระแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "7207.79",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-EA-ขาย-รชล.สระแก้ว -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "17400.85",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-EA-ขาย-รชล.สระแก้ว -> CPFT-EA-ขาย-รชล.นายายอาม|ปริมาณแนะนำโอน (kg)": {
+    "actual": "10420.46",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-MD-ขาย-HUB-รชล-อ่างทอง -> โรงชำแหละสุกรพระพุทธบาท|ปริมาณแนะนำโอน (kg)": {
+    "actual": "25477.12",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-MD-ขาย-HUB-รชล-อ่างทอง -> Cc Pork Shop คลองหลวง|ปริมาณแนะนำโอน (kg)": {
+    "actual": "854.8",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-MD-ขาย-HUB-รชล-อ่างทอง -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "7813.32",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-MD-ขาย-HUB-รชล-อ่างทอง -> FMC-รง.แปรรูปบางน้ำจืด|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1627.03",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น -> โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1490.49",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "8642.46",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น -> โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|ปริมาณแนะนำโอน (kg)": {
+    "actual": "3217.76",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1048.39",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "5602.41",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น -> CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|ปริมาณแนะนำโอน (kg)": {
+    "actual": "18335.23",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น -> NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1765.71",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2010",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "3572.9",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|ปริมาณแนะนำโอน (kg)": {
+    "actual": "4100.92",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> Cc Pork Shop คลองหลวง|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1765.73",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|ปริมาณแนะนำโอน (kg)": {
+    "actual": "4890.7",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "6",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|ปริมาณแนะนำโอน (kg)": {
+    "actual": "15537.42",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "5546.02",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร -> NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|ปริมาณแนะนำโอน (kg)": {
+    "actual": "10508.99",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู -> โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2913.44",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "3319.35",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู -> โรงตัดแต่ง-สุกร จอหอ นครราชสีมา|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1202.5",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู -> Cc Pork Shop คลองหลวง|ปริมาณแนะนำโอน (kg)": {
+    "actual": "778.52",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|ปริมาณแนะนำโอน (kg)": {
+    "actual": "10104.7",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู -> CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|ปริมาณแนะนำโอน (kg)": {
+    "actual": "7429.62",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู -> DM-โรงชำแหละและตัดแต่งกำแพงเพชร|ปริมาณแนะนำโอน (kg)": {
+    "actual": "727.4",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู -> NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1497.44",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย -> โรงชำแหละและตัดแต่งสุกร ศรีสะเกษ|ปริมาณแนะนำโอน (kg)": {
+    "actual": "511.29",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "608.9",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|ปริมาณแนะนำโอน (kg)": {
+    "actual": "10849.65",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ยโสธร|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2522.81",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "7994.64",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่ -> CPFT - โรงชำแหละห้วยส้ม|ปริมาณแนะนำโอน (kg)": {
+    "actual": "96459.71",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|DM-โรงชำแหละและตัดแต่งกำแพงเพชร -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "23827.53",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|DM-โรงชำแหละและตัดแต่งกำแพงเพชร -> CPFT - โรงชำแหละห้วยส้ม|ปริมาณแนะนำโอน (kg)": {
+    "actual": "46183.84",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|DM-โรงชำแหละและตัดแต่งกำแพงเพชร -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1459.72",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|DM-โรงชำแหละและตัดแต่งกำแพงเพชร -> CPFT-NO-รชล.จิตรุ่งเรือง-เชียงใหม่|ปริมาณแนะนำโอน (kg)": {
+    "actual": "5025.96",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|DM-โรงชำแหละและตัดแต่งกำแพงเพชร -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "4296.26",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|DM-SO-สุกร-รชล-กระบี่ -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "4042.47",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|DM-SO-สุกร-รชล-กระบี่ -> DM-SO-สุกร-รชล-มะกอกเหนือ-พท|ปริมาณแนะนำโอน (kg)": {
+    "actual": "18410.72",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMB-Hub ลาดหลุมแก้ว -> ศูนย์ตัดแต่ง-บางปลากด|ปริมาณแนะนำโอน (kg)": {
+    "actual": "621.47",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMB-Hub ลาดหลุมแก้ว -> Cc Pork Shop คลองหลวง|ปริมาณแนะนำโอน (kg)": {
+    "actual": "15069.47",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMC-รง.แปรรูปบางน้ำจืด -> ศูนย์ตัดแต่ง-บางปลากด|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2200.57",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMC-รง.แปรรูปบางน้ำจืด -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "5242.82",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMCE-Dummy-รชล-พนมทวน -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "19629",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMCE-Dummy-รชล-พนมทวน -> โรงชำแหละสุกรพระพุทธบาท|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1404.72",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMCE-Dummy-รชล-พนมทวน -> ศูนย์ตัดแต่ง-บางปลากด|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1003.93",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMCE-Dummy-รชล-พนมทวน -> Cc Pork Shop คลองหลวง|ปริมาณแนะนำโอน (kg)": {
+    "actual": "2382.92",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMCE-Dummy-รชล-พนมทวน -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1502.09",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMCE-Dummy-รชล-พนมทวน -> DM-SO-สุกร-รชล-กระบี่|ปริมาณแนะนำโอน (kg)": {
+    "actual": "12098.82",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|FMCE-Dummy-รชล-พนมทวน -> FMB-Hub ลาดหลุมแก้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "5418.43",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา -> โรงชำแหละสุกรแปดริ้ว|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1503.21",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา -> CPFT-NE-ขาย-HUB-ตัดแต่ง-ขอนแก่น|ปริมาณแนะนำโอน (kg)": {
+    "actual": "559.25",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา -> CPFT-NE-ขาย-HUB-รชล.หนองบัวลำภู|ปริมาณแนะนำโอน (kg)": {
+    "actual": "3054.19",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา -> CPFT-NE-ขาย-HUB-รชล.หนองสองห้อง-หนองคาย|ปริมาณแนะนำโอน (kg)": {
+    "actual": "1245.88",
+    "accuracy": "",
+    "comment": ""
+  },
+  "4. โอน|NE-ขาย-HUB-รชล.จอหอ-นครราชสีมา -> FMCE-Dummy-รชล-พนมทวน|ปริมาณแนะนำโอน (kg)": {
+    "actual": "502.56",
     "accuracy": "",
     "comment": ""
   }

@@ -104,8 +104,8 @@ type Aggregate = {
 const allSheets = "ทั้งหมด";
 const allFactories = "ทุกโรงเรือน";
 const storageKey = "ai-feedback-review-v1";
-const uploadedDataKey = "ai-feedback-uploaded-ai-data-v1";
-const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v1";
+const uploadedDataKey = "ai-feedback-uploaded-ai-data-v2";
+const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v2";
 const numberFormatter = new Intl.NumberFormat("th-TH", {
   maximumFractionDigits: 2,
 });
@@ -115,21 +115,29 @@ const rememberedFeedbackMetrics: Record<string, string[]> = {
   "2. ปริมาณ Supply": [
     "Production (kg)",
     "Stock ยกมา (kg)",
+    "แปลงไปเป็น SKU อื่น (kg)",
     "Transfer in (kg)",
     "Transfer out (kg)",
     "Net Transfer (kg)",
     "Total Supply (kg)",
-    "Forecast (kg)",
-    "% ตอบกลับ Forecast",
     "ของขาด-เหลือ (kg)",
+    "ของเหลือ (kg)",
+    "Buffer วันถัดไป (kg)",
     "Quota (kg)",
+    "ผลักดัน (kg)",
   ],
-  "3. FC,QT": ["FC (kg)", "QT (kg)", "% ตอบกลับ Forecast", "ขาด", "เกิน"],
-  "4. โอน": ["ปริมาณแนะนำโอน (kg)", "ปริมาณโอนทั้งหมด (kg)", "เหลือ (kg)"],
+  "3. FC,QT": [
+    "กำไร/ขาดทุนต่อหน่วย (Baht/kg)",
+    "คาดการณ์ยอดขาย (Baht)",
+    "กำไร/ขาดทุน รวม (Baht)",
+  ],
+  "4. โอน": [
+    "SourceWarehouseForPlan1",
+    "DestinationWarehouseForPlan1",
+    "ปริมาณแนะนำโอน (kg)",
+  ],
   "5. การใช้รถ": [
     "ปริมาณแนะนำโอน (kg)",
-    "ปริมาณโอนทั้งหมด (kg)",
-    "เหลือ (kg)",
     "จำนวนรถ_4Wheels",
     "จำนวนรถ_6Wheels",
     "จำนวนรถ_10Wheels",
