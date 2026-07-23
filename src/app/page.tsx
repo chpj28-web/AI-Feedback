@@ -1044,7 +1044,7 @@ export default function Home() {
                   sourceFile={data?.sourceFile ?? "-"}
                 />
 
-                <section className="grid gap-5 xl:grid-cols-[1fr_300px]">
+                <section className="feedback-layout grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
                   <ComparisonCard
                     metricFilters={metricFilters}
                     setMetricFilters={setMetricFilters}
@@ -1364,7 +1364,7 @@ function ComparisonCard({
   updateFeedback: (id: string, patch: Partial<Feedback>) => void;
 }) {
   return (
-    <div className="rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
+    <div className="comparison-card min-w-0 rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           <span className="grid size-8 place-items-center rounded-full bg-[#ef3e8f] text-sm font-bold text-white">
@@ -1394,7 +1394,7 @@ function ComparisonCard({
         <StatusFilterBox values={statusFilters} onChange={setStatusFilters} />
       </div>
 
-        <div className="mobile-table-frame rounded-lg border border-[#dfe6ef]">
+        <div className="mobile-table-frame min-w-0 rounded-lg border border-[#dfe6ef]">
           <div className="mobile-table-scroll max-h-[640px] overflow-auto">
           <table className="feedback-table w-full min-w-[1080px] border-collapse text-sm">
             <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
@@ -1699,7 +1699,7 @@ function SummaryCard({
           : { color: "#e11d48", soft: "#fff1f2", label: "ต่างกันมาก" };
 
   return (
-    <div className="space-y-5">
+    <div className="summary-card min-w-0 space-y-5">
       <div className="rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
         <h3 className="text-lg font-bold">สรุปภาพรวมรอบการผลิตนี้</h3>
         <div className="mt-6 flex justify-center">

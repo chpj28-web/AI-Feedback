@@ -77,8 +77,47 @@ body {
     font-size: 0.9rem;
   }
 
+  .feedback-layout,
+  .comparison-card,
+  .summary-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .comparison-card,
+  .summary-card > div {
+    padding: 1rem;
+    border-radius: 0.75rem;
+  }
+
+  .comparison-card > div:first-child {
+    gap: 0.75rem;
+  }
+
+  .summary-card .size-40 {
+    width: 8.5rem;
+    height: 8.5rem;
+  }
+
+  .summary-card .size-28 {
+    width: 6rem;
+    height: 6rem;
+  }
+
+  .summary-card .text-3xl {
+    font-size: 1.65rem;
+    line-height: 1.1;
+  }
+
+  .summary-card :is(.px-4) {
+    padding-inline: 0.75rem;
+  }
+
   .mobile-table-frame {
-    margin-inline: -0.25rem;
+    width: 100%;
+    max-width: calc(100vw - 2rem);
+    margin-inline: 0;
     border-radius: 0.5rem;
     overflow-x: auto;
     overflow-y: hidden;
@@ -90,6 +129,7 @@ body {
 
   .mobile-table-scroll {
     min-width: max-content;
+    width: max-content;
   }
 
   .feedback-table {
