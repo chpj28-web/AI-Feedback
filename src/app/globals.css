@@ -1,13 +1,5 @@
 @import "tailwindcss";
 
-@font-face {
-  font-family: "Wanathit";
-  src: url("/fonts/WanathitDemo.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --background: #f8fafc;
   --foreground: #020617;
@@ -16,14 +8,14 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Wanathit";
-  --font-mono: "Wanathit";
+  --font-sans: var(--font-sarabun);
+  --font-mono: var(--font-sarabun);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "Wanathit", Arial, Helvetica, sans-serif;
+  font-family: var(--font-sarabun), Arial, Helvetica, sans-serif;
   font-size: 18px;
   line-height: 1.65;
 }
