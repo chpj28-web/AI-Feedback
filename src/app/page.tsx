@@ -54,7 +54,7 @@ type Feedback = {
   comment: string;
 };
 
-type AppTab = "feedback" | "upload";
+type AppTab = "feedback" | "transfer" | "upload";
 
 type CellLike = {
   value?: unknown;
@@ -165,6 +165,7 @@ const actualMetricAliases: Record<string, string[]> = {
 const navItems = [
   { label: "Dashboard", icon: HomeIcon, tab: "feedback" },
   { label: "บันทึก Feedback", icon: Edit3, tab: "feedback" },
+  { label: "เทียบการโอน", icon: Factory, tab: "transfer" },
   { label: "อัปโหลดผล AI", icon: Upload, tab: "upload" },
   { label: "ประวัติ Feedback", icon: Database, tab: "feedback" },
   { label: "วิเคราะห์ผล", icon: BarChart3 },
@@ -304,6 +305,18 @@ function difference(record: AiRecord, actual: string) {
   const actualNumber = Number(actual.replaceAll(",", ""));
   if (record.aiValue === null || !Number.isFinite(actualNumber)) return null;
   return actualNumber - record.aiValue;
+}
+
+function isTransferRecord(record: AiRecord) {
+  return record.sheet === "4. โอน" || record.sheet === "5. การใช้รถ";
+}
+
+function routeParts(factory: string) {
+  const [source, destination] = factory.split(" -> ");
+  return {
+    source: source?.trim() || "ไม่ระบุ",
+    destination: destination?.trim() || "ไม่ระบุ",
+  };
 }
 
 async function parseAiWorkbook(file: File): Promise<AiData> {
@@ -541,24 +554,32 @@ export default function Home() {
   }, [feedback]);
 
   const records = useMemo(() => data?.records ?? [], [data]);
-  const sheets = useMemo(
-    () => [allSheets, ...Array.from(new Set(records.map((record) => record.sheet)))],
+  const feedbackRecords = useMemo(
+    () => records.filter((record) => !isTransferRecord(record)),
     [records],
+  );
+  const transferRecords = useMemo(
+    () => records.filter((record) => isTransferRecord(record)),
+    [records],
+  );
+  const sheets = useMemo(
+    () => [allSheets, ...Array.from(new Set(feedbackRecords.map((record) => record.sheet)))],
+    [feedbackRecords],
   );
   const factories = useMemo(
     () =>
-      Array.from(new Set(records.map((record) => record.factory))).sort((a, b) =>
+      Array.from(new Set(feedbackRecords.map((record) => record.factory))).sort((a, b) =>
         a.localeCompare(b, "th"),
       ),
-    [records],
+    [feedbackRecords],
   );
   const metrics = useMemo(
     () => [
-      ...Array.from(new Set(records.map((record) => record.metric))).sort((a, b) =>
+      ...Array.from(new Set(feedbackRecords.map((record) => record.metric))).sort((a, b) =>
         a.localeCompare(b, "th"),
       ),
     ],
-    [records],
+    [feedbackRecords],
   );
 
   const selectedFactory =
@@ -566,7 +587,7 @@ export default function Home() {
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return records.filter((record) => {
+    return feedbackRecords.filter((record) => {
       const matchesSheet = sheet === allSheets || record.sheet === sheet;
       const matchesFactory = !selectedFactory || record.factory === selectedFactory;
       const matchesMetric =
@@ -582,7 +603,7 @@ export default function Home() {
 
       return matchesSheet && matchesFactory && matchesMetric && matchesStatus && matchesQuery;
     });
-  }, [feedback, metricFilters, query, records, selectedFactory, sheet, statusFilters]);
+  }, [feedback, feedbackRecords, metricFilters, query, selectedFactory, sheet, statusFilters]);
 
   const tableRows = filtered;
   const scores = tableRows
@@ -702,12 +723,16 @@ export default function Home() {
                   <h1 className="text-2xl font-bold">
                     {activeTab === "upload"
                       ? "อัปโหลดผล AI"
-                      : "บันทึก Feedback: เทียบผล AI กับค่าจริง"}
+                      : activeTab === "transfer"
+                        ? "เทียบผล AI: การโอนสินค้า"
+                        : "บันทึก Feedback: เทียบผล AI กับค่าจริง"}
                   </h1>
                   <p className="mt-1 text-sm text-slate-500">
                     {activeTab === "upload"
                       ? "นำเข้าไฟล์ Excel ที่มีโครงสร้างชีตและหัวคอลัมน์แบบเดิม"
-                      : "กรอกและตรวจสอบความถูกต้องของผลลัพธ์ AI เทียบกับค่าจริง"}
+                      : activeTab === "transfer"
+                        ? "ตรวจว่าต้นทาง ปลายทาง และปริมาณที่ AI แนะนำโอนตรงกับ Actual หรือไม่"
+                        : "กรอกและตรวจสอบความถูกต้องของผลลัพธ์ AI เทียบกับค่าจริง"}
                   </p>
                 </div>
               </div>
@@ -759,6 +784,12 @@ export default function Home() {
                 uploadedNames={uploadedNames}
                 onUpload={handleAiUpload}
                 onActualUpload={handleActualUpload}
+              />
+            ) : activeTab === "transfer" ? (
+              <TransferComparison
+                records={transferRecords}
+                feedback={feedback}
+                updateFeedback={updateFeedback}
               />
             ) : (
               <>
@@ -826,9 +857,9 @@ function Sidebar({
         {navItems.map((item) => {
           const Icon = item.icon;
           const active =
-            activeTab === "upload"
-              ? "tab" in item && item.tab === "upload"
-              : item.label === "บันทึก Feedback";
+            activeTab === "feedback"
+              ? item.label === "บันทึก Feedback"
+              : "tab" in item && item.tab === activeTab;
 
           return (
             <button
@@ -1301,6 +1332,183 @@ function CommentCard({
           <Save size={18} />
           บันทึก Feedback
         </button>
+      </div>
+    </section>
+  );
+}
+
+function TransferComparison({
+  records,
+  feedback,
+  updateFeedback,
+}: {
+  records: AiRecord[];
+  feedback: Record<string, Feedback>;
+  updateFeedback: (id: string, patch: Partial<Feedback>) => void;
+}) {
+  type TransferRoute = {
+    route: string;
+    source: string;
+    destination: string;
+    transfer?: AiRecord;
+    fourWheel?: AiRecord;
+    sixWheel?: AiRecord;
+    tenWheel?: AiRecord;
+  };
+
+  const routes = useMemo(() => {
+    const map = new Map<string, TransferRoute>();
+
+    for (const record of records) {
+      const current: TransferRoute =
+        map.get(record.factory) ??
+        (() => {
+          const parts = routeParts(record.factory);
+          return {
+            route: record.factory,
+            source: parts.source,
+            destination: parts.destination,
+          };
+        })();
+
+      if (record.metric === "ปริมาณแนะนำโอน (kg)") current.transfer = record;
+      if (record.metric === "จำนวนรถ_4Wheels") current.fourWheel = record;
+      if (record.metric === "จำนวนรถ_6Wheels") current.sixWheel = record;
+      if (record.metric === "จำนวนรถ_10Wheels") current.tenWheel = record;
+
+      map.set(record.factory, current);
+    }
+
+    return [...map.values()].filter((item) => item.transfer);
+  }, [records]);
+
+  return (
+    <section className="space-y-5">
+      <div className="rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
+        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-bold">เทียบผลการโอนจาก AI กับ Actual</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              ใช้ผล AI จากชีต 4-5 และเทียบค่าจริงจาก Actual ชีต 4. โอน
+            </p>
+          </div>
+          <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
+            {routes.length.toLocaleString("th-TH")} เส้นทาง
+          </span>
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
+          <div className="max-h-[680px] overflow-auto">
+            <table className="w-full min-w-[1180px] border-collapse text-sm">
+              <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
+                <tr>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ต้นทาง</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ปลายทาง</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">AI แนะนำโอน (kg)</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">Actual โอน (kg)</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">ต่างกัน (kg)</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">สถานะ</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">รถ 4W</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">รถ 6W</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">รถ 10W</th>
+                  <th className="px-4 py-3">ความคิดเห็น</th>
+                </tr>
+              </thead>
+              <tbody>
+                {routes.map((route) => {
+                  const transfer = route.transfer;
+                  if (!transfer) return null;
+
+                  const itemFeedback = feedback[transfer.id] ?? {
+                    actual: "",
+                    accuracy: "",
+                    comment: "",
+                  };
+                  const matchScore = score(transfer, itemFeedback.actual);
+                  const diff = difference(transfer, itemFeedback.actual);
+                  const commentRequired = matchScore !== null && matchScore < 80;
+                  const missingRequiredComment =
+                    commentRequired && !itemFeedback.comment.trim();
+
+                  return (
+                    <tr key={route.route} className="border-t border-[#e8edf4]">
+                      <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">
+                        {route.source}
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">
+                        {route.destination}
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">
+                        {formatNumber(transfer.aiValue)}
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3">
+                        <input
+                          className="ml-auto h-9 w-32 rounded-md bg-white px-3 text-right font-mono outline-none ring-1 ring-[#dfe6ef] focus:ring-[#ef4b98]"
+                          value={itemFeedback.actual}
+                          onChange={(event) =>
+                            updateFeedback(transfer.id, { actual: event.target.value })
+                          }
+                        />
+                      </td>
+                      <td
+                        className={`border-r border-[#e8edf4] px-4 py-3 text-right font-mono ${
+                          diff !== null && diff > 0 ? "text-red-600" : "text-emerald-600"
+                        }`}
+                      >
+                        {diff === null ? "-" : `${diff > 0 ? "+" : ""}${formatNumber(diff)}`}
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3 text-center">
+                        <span
+                          className={`inline-flex h-8 min-w-24 items-center justify-center rounded-md px-3 text-xs font-bold ${scoreTone(
+                            matchScore,
+                          )}`}
+                        >
+                          {scoreLabel(matchScore)}
+                        </span>
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
+                        {formatNumber(route.fourWheel?.aiValue ?? null)}
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
+                        {formatNumber(route.sixWheel?.aiValue ?? null)}
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
+                        {formatNumber(route.tenWheel?.aiValue ?? null)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="relative">
+                          <input
+                            className={`h-9 w-full rounded-md border px-3 pr-9 text-sm outline-none ${
+                              missingRequiredComment
+                                ? "border-red-400 bg-red-50 focus:border-red-500"
+                                : "border-[#dfe6ef] focus:border-[#ef4b98]"
+                            }`}
+                            placeholder={
+                              commentRequired
+                                ? "ต้องกรอกความคิดเห็น..."
+                                : "กรอกความคิดเห็น..."
+                            }
+                            value={itemFeedback.comment}
+                            onChange={(event) =>
+                              updateFeedback(transfer.id, {
+                                comment: event.target.value,
+                              })
+                            }
+                          />
+                          {commentRequired && (
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-lg font-bold text-red-500">
+                              *
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
   );
