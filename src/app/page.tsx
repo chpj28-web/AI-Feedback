@@ -102,7 +102,6 @@ type Aggregate = {
 };
 
 const allSheets = "ทั้งหมด";
-const allFactories = "ทุกโรงเรือน";
 const storageKey = "ai-feedback-review-v1";
 const uploadedDataKey = "ai-feedback-uploaded-ai-data-v2";
 const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v2";
@@ -498,7 +497,7 @@ async function parseActualWorkbook(
 export default function Home() {
   const [data, setData] = useState<AiData | null>(null);
   const [sheet, setSheet] = useState(allSheets);
-  const [factory, setFactory] = useState(allFactories);
+  const [factory, setFactory] = useState("");
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<AppTab>("feedback");
   const [isUploading, setIsUploading] = useState(false);
@@ -542,20 +541,21 @@ export default function Home() {
     [records],
   );
   const factories = useMemo(
-    () => [
-      allFactories,
-      ...Array.from(new Set(records.map((record) => record.factory))).sort((a, b) =>
+    () =>
+      Array.from(new Set(records.map((record) => record.factory))).sort((a, b) =>
         a.localeCompare(b, "th"),
       ),
-    ],
     [records],
   );
+
+  const selectedFactory =
+    factory && factories.includes(factory) ? factory : (factories[0] ?? "");
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return records.filter((record) => {
       const matchesSheet = sheet === allSheets || record.sheet === sheet;
-      const matchesFactory = factory === allFactories || record.factory === factory;
+      const matchesFactory = !selectedFactory || record.factory === selectedFactory;
       const matchesQuery =
         !normalizedQuery ||
         `${record.metric} ${record.factory} ${record.sheet}`
@@ -564,7 +564,7 @@ export default function Home() {
 
       return matchesSheet && matchesFactory && matchesQuery;
     });
-  }, [factory, query, records, sheet]);
+  }, [query, records, selectedFactory, sheet]);
 
   const tableRows = filtered;
   const scores = tableRows
@@ -603,7 +603,7 @@ export default function Home() {
       setData(uploadedData);
       setUploadedNames((current) => ({ ...current, ai: file.name }));
       setSheet(allSheets);
-      setFactory(allFactories);
+      setFactory("");
       setQuery("");
       window.localStorage.setItem(uploadedDataKey, JSON.stringify(uploadedData));
       setUploadStatus({
@@ -710,9 +710,10 @@ export default function Home() {
                 </select>
                 <select
                   className="h-11 min-w-56 rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-medium shadow-sm"
-                  value={factory}
+                  value={selectedFactory}
                   onChange={(event) => setFactory(event.target.value)}
                 >
+                  {!selectedFactory && <option value="">กำลังโหลดโรงเรือน...</option>}
                   {factories.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
@@ -738,7 +739,7 @@ export default function Home() {
             ) : (
               <>
                 <ContextBar
-                  factory={factory === allFactories ? "โรงงาน A" : factory}
+                  factory={selectedFactory || "โรงงาน A"}
                   sourceFile={data?.sourceFile ?? "-"}
                 />
 
@@ -948,6 +949,9 @@ function ComparisonCard({
                 const matchScore = score(record, itemFeedback.actual);
                 const diff = difference(record, itemFeedback.actual);
                 const diffPercent = matchScore === null ? null : 100 - matchScore;
+                const commentRequired = matchScore !== null && matchScore < 80;
+                const missingRequiredComment =
+                  commentRequired && !itemFeedback.comment.trim();
 
                 return (
                   <tr key={record.id} className="border-t border-[#e8edf4]">
@@ -1004,17 +1008,36 @@ function ComparisonCard({
                     <td className="px-4 py-3">
                       <div className="relative">
                         <input
-                          className="h-9 w-full rounded-md border border-[#dfe6ef] px-3 pr-9 text-sm outline-none focus:border-[#ef4b98]"
-                          placeholder="กรอกความคิดเห็น..."
+                          className={`h-9 w-full rounded-md border px-3 pr-9 text-sm outline-none ${
+                            missingRequiredComment
+                              ? "border-red-400 bg-red-50 focus:border-red-500"
+                              : "border-[#dfe6ef] focus:border-[#ef4b98]"
+                          }`}
+                          placeholder={
+                            commentRequired
+                              ? "ต้องกรอกความคิดเห็น..."
+                              : "กรอกความคิดเห็น..."
+                          }
                           value={itemFeedback.comment}
                           onChange={(event) =>
                             updateFeedback(record.id, { comment: event.target.value })
                           }
                         />
-                        <MessageCircle
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
-                          size={17}
-                        />
+                        {commentRequired ? (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-lg font-bold text-red-500">
+                            *
+                          </span>
+                        ) : (
+                          <MessageCircle
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+                            size={17}
+                          />
+                        )}
+                        {missingRequiredComment && (
+                          <p className="mt-1 text-xs font-medium text-red-600">
+                            ต้องกรอกเมื่อสถานะควรปรับปรุงหรือต่างกันมาก
+                          </p>
+                        )}
                       </div>
                     </td>
                   </tr>
