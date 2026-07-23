@@ -511,6 +511,7 @@ export default function Home() {
   const [data, setData] = useState<AiData | null>(null);
   const [sheet, setSheet] = useState(allSheets);
   const [factory, setFactory] = useState("");
+  const [week, setWeek] = useState("");
   const [metricFilters, setMetricFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([
     "ควรปรับปรุง",
@@ -583,17 +584,16 @@ export default function Home() {
 
   const selectedFactory =
     factory && factories.includes(factory) ? factory : (factories[0] ?? "");
-  const weekLabel = useMemo(() => {
-    const weeks = Array.from(
+  const weekOptions = useMemo(() => {
+    return Array.from(
       new Set(
         feedbackRecords
           .filter((record) => !selectedFactory || record.factory === selectedFactory)
           .flatMap((record) => record.weeks),
       ),
     ).sort((a, b) => Number(a) - Number(b));
-
-    return weeks.length > 0 ? weeks.join(", ") : "-";
   }, [feedbackRecords, selectedFactory]);
+  const selectedWeek = week && weekOptions.includes(week) ? week : "";
 
   const filtered = useMemo(() => {
     return feedbackRecords.filter((record) => {
@@ -601,13 +601,15 @@ export default function Home() {
       const matchesFactory = !selectedFactory || record.factory === selectedFactory;
       const matchesMetric =
         metricFilters.length === 0 || metricFilters.includes(record.metric);
+      const matchesWeek =
+        !selectedWeek || record.weeks.includes(selectedWeek);
       const recordStatus = scoreLabel(score(record, feedback[record.id]?.actual ?? ""));
       const matchesStatus =
         statusFilters.length === 0 || statusFilters.includes(recordStatus);
 
-      return matchesSheet && matchesFactory && matchesMetric && matchesStatus;
+      return matchesSheet && matchesFactory && matchesWeek && matchesMetric && matchesStatus;
     });
-  }, [feedback, feedbackRecords, metricFilters, selectedFactory, sheet, statusFilters]);
+  }, [feedback, feedbackRecords, metricFilters, selectedFactory, selectedWeek, sheet, statusFilters]);
 
   const tableRows = filtered;
   const scores = tableRows
@@ -783,8 +785,13 @@ export default function Home() {
                 <ContextBar
                   factory={selectedFactory || "โรงงาน A"}
                   factories={factories}
-                  onFactoryChange={setFactory}
-                  weekLabel={weekLabel}
+                  onFactoryChange={(nextFactory) => {
+                    setFactory(nextFactory);
+                    setWeek("");
+                  }}
+                  week={selectedWeek}
+                  weeks={weekOptions}
+                  onWeekChange={setWeek}
                   sourceFile={data?.sourceFile ?? "-"}
                 />
 
@@ -898,13 +905,17 @@ function ContextBar({
   factory,
   factories,
   onFactoryChange,
-  weekLabel,
+  week,
+  weeks,
+  onWeekChange,
   sourceFile,
 }: {
   factory: string;
   factories: string[];
   onFactoryChange: (factory: string) => void;
-  weekLabel: string;
+  week: string;
+  weeks: string[];
+  onWeekChange: (week: string) => void;
   sourceFile: string;
 }) {
   return (
@@ -916,7 +927,7 @@ function ContextBar({
           onChange={onFactoryChange}
         />
         <InfoTile label="วันที่บันทึก" value="31/05/2024" />
-        <InfoTile label="สัปดาห์" value={weekLabel} />
+        <WeekSelectTile weeks={weeks} value={week} onChange={onWeekChange} />
         <InfoTile label="ช่วงเวลาการทำนาย" value="30/05/2024 20:00 - 31/05/2024 20:00" />
         <InfoTile label="ไฟล์ผล AI" value={sourceFile} />
       </div>
@@ -933,24 +944,92 @@ function FactorySelectTile({
   value: string;
   onChange: (factory: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const filteredFactories = factories.filter((option) =>
+    option.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
   return (
-    <div className="flex min-w-0 items-center gap-3 border-r border-[#edf1f6] pr-4 last:border-r-0">
+    <div className="relative flex min-w-0 items-center gap-3 border-r border-[#edf1f6] pr-4 last:border-r-0">
       <div className="grid size-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">
         <Factory size={28} />
       </div>
-      <label className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1">
         <p className="text-xs text-slate-500">โรงงาน</p>
+        <button
+          className="mt-1 flex h-10 w-full items-center justify-between gap-2 rounded-md border border-[#dfe6ef] bg-white px-3 text-left font-semibold outline-none focus:border-[#ef4b98]"
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+        >
+          <span className="min-w-0 truncate">{value || "กำลังโหลดโรงเรือน..."}</span>
+          <ChevronDown size={16} className="shrink-0 text-slate-400" />
+        </button>
+        {open ? (
+          <div className="absolute left-14 right-4 top-[72px] z-40 rounded-md border border-[#dfe6ef] bg-white p-3 shadow-lg">
+            <label className="relative mb-3 block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                className="h-10 w-full rounded-md border border-[#dfe6ef] pl-9 pr-3 text-sm outline-none focus:border-[#ef4b98]"
+                placeholder="ค้นหาโรงงาน..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+            <div className="max-h-72 space-y-1 overflow-auto pr-1">
+              {filteredFactories.map((option) => (
+                <button
+                  key={option}
+                  className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-[#fff1f7] ${
+                    option === value ? "bg-[#ffe8f1] text-[#ef3e8f]" : "text-slate-700"
+                  }`}
+                  type="button"
+                  onClick={() => {
+                    onChange(option);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                >
+                  {option}
+                </button>
+              ))}
+              {filteredFactories.length === 0 ? (
+                <p className="py-3 text-center text-sm text-slate-500">ไม่พบโรงงาน</p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function WeekSelectTile({
+  weeks,
+  value,
+  onChange,
+}: {
+  weeks: string[];
+  value: string;
+  onChange: (week: string) => void;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3 border-r border-[#edf1f6] pr-4 last:border-r-0">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-slate-500">สัปดาห์</p>
         <select
           className="mt-1 h-10 w-full rounded-md border border-[#dfe6ef] bg-white px-3 font-semibold outline-none focus:border-[#ef4b98]"
           value={value}
           onChange={(event) => onChange(event.target.value)}
         >
-          {!value && <option value="">กำลังโหลดโรงเรือน...</option>}
-          {factories.map((option) => (
-            <option key={option}>{option}</option>
+          <option value="">ทุกสัปดาห์</option>
+          {weeks.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
           ))}
         </select>
-      </label>
+      </div>
     </div>
   );
 }
