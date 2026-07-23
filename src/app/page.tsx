@@ -584,6 +584,17 @@ export default function Home() {
 
   const selectedFactory =
     factory && factories.includes(factory) ? factory : (factories[0] ?? "");
+  const weekLabel = useMemo(() => {
+    const weeks = Array.from(
+      new Set(
+        feedbackRecords
+          .filter((record) => !selectedFactory || record.factory === selectedFactory)
+          .flatMap((record) => record.weeks),
+      ),
+    ).sort((a, b) => Number(a) - Number(b));
+
+    return weeks.length > 0 ? weeks.join(", ") : "-";
+  }, [feedbackRecords, selectedFactory]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -751,22 +762,6 @@ export default function Home() {
                     <option key={option}>{option}</option>
                   ))}
                 </select>
-                <select
-                  className="h-11 min-w-56 rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-medium shadow-sm"
-                  value={selectedFactory}
-                  onChange={(event) => setFactory(event.target.value)}
-                >
-                  {!selectedFactory && <option value="">กำลังโหลดโรงเรือน...</option>}
-                  {factories.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-                <TopButton>
-                  ตัวแปร: {metricFilters.length === 0 ? "ทั้งหมด" : metricFilters.length}
-                </TopButton>
-                <TopButton>
-                  สถานะ: {statusFilters.length === 0 ? "ทั้งหมด" : statusFilters.length}
-                </TopButton>
                 <TopButton>
                   <HelpCircle size={17} />
                   วิธีใช้งาน
@@ -795,6 +790,9 @@ export default function Home() {
               <>
                 <ContextBar
                   factory={selectedFactory || "โรงงาน A"}
+                  factories={factories}
+                  onFactoryChange={setFactory}
+                  weekLabel={weekLabel}
                   sourceFile={data?.sourceFile ?? "-"}
                 />
 
@@ -906,17 +904,64 @@ function TopButton({ children }: { children: ReactNode }) {
   );
 }
 
-function ContextBar({ factory, sourceFile }: { factory: string; sourceFile: string }) {
+function ContextBar({
+  factory,
+  factories,
+  onFactoryChange,
+  weekLabel,
+  sourceFile,
+}: {
+  factory: string;
+  factories: string[];
+  onFactoryChange: (factory: string) => void;
+  weekLabel: string;
+  sourceFile: string;
+}) {
   return (
     <section className="rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
-      <div className="grid gap-4 lg:grid-cols-[220px_1fr_1fr_1.7fr_1.2fr]">
-        <InfoTile icon={<Factory size={28} />} label="โรงงาน" value={factory} />
+      <div className="grid gap-4 lg:grid-cols-[minmax(320px,1.6fr)_0.7fr_0.7fr_1.5fr_1.2fr]">
+        <FactorySelectTile
+          factories={factories}
+          value={factory}
+          onChange={onFactoryChange}
+        />
         <InfoTile label="วันที่บันทึก" value="31/05/2024" />
-        <InfoTile label="รอบการผลิต" value="รอบที่ 25/2024" />
+        <InfoTile label="สัปดาห์" value={weekLabel} />
         <InfoTile label="ช่วงเวลาการทำนาย" value="30/05/2024 20:00 - 31/05/2024 20:00" />
         <InfoTile label="ไฟล์ผล AI" value={sourceFile} />
       </div>
     </section>
+  );
+}
+
+function FactorySelectTile({
+  factories,
+  value,
+  onChange,
+}: {
+  factories: string[];
+  value: string;
+  onChange: (factory: string) => void;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3 border-r border-[#edf1f6] pr-4 last:border-r-0">
+      <div className="grid size-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">
+        <Factory size={28} />
+      </div>
+      <label className="min-w-0 flex-1">
+        <p className="text-xs text-slate-500">โรงงาน</p>
+        <select
+          className="mt-1 h-10 w-full rounded-md border border-[#dfe6ef] bg-white px-3 font-semibold outline-none focus:border-[#ef4b98]"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          {!value && <option value="">กำลังโหลดโรงเรือน...</option>}
+          {factories.map((option) => (
+            <option key={option}>{option}</option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }
 
@@ -934,7 +979,7 @@ function InfoTile({
       {icon && <div className="grid size-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600">{icon}</div>}
       <div className="min-w-0">
         <p className="text-xs text-slate-500">{label}</p>
-        <p className="mt-1 truncate font-semibold">{value}</p>
+        <p className="mt-1 break-words font-semibold">{value}</p>
       </div>
     </div>
   );
@@ -1164,18 +1209,25 @@ function MultiSelectBox({
   }
 
   return (
-    <div className="rounded-md border border-[#dfe6ef] bg-white p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-bold text-slate-600">{label}</p>
-        <button
-          className="text-xs font-bold text-[#ef3e8f]"
-          type="button"
-          onClick={() => onChange([])}
-        >
-          {emptyLabel}
-        </button>
-      </div>
-      <div className="max-h-32 space-y-2 overflow-auto pr-1">
+    <details className="relative rounded-md border border-[#dfe6ef] bg-white">
+      <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-medium marker:hidden">
+        <span className="min-w-0 truncate">
+          {label}: {values.length === 0 ? emptyLabel : `${values.length} รายการ`}
+        </span>
+        <ChevronDown size={16} className="shrink-0 text-slate-400" />
+      </summary>
+      <div className="absolute left-0 top-12 z-30 w-full rounded-md border border-[#dfe6ef] bg-white p-3 shadow-lg">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-bold text-slate-600">{label}</p>
+          <button
+            className="text-xs font-bold text-[#ef3e8f]"
+            type="button"
+            onClick={() => onChange([])}
+          >
+            {emptyLabel}
+          </button>
+        </div>
+        <div className="max-h-48 space-y-2 overflow-auto pr-1">
         {options.map((option) => (
           <label key={option} className="flex items-start gap-2 text-sm">
             <input
@@ -1187,8 +1239,9 @@ function MultiSelectBox({
             <span className="leading-5">{option}</span>
           </label>
         ))}
+        </div>
       </div>
-    </div>
+    </details>
   );
 }
 
