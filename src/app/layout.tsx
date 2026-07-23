@@ -9,8 +9,13 @@ const sarabun = Sarabun({
 });
 
 export const metadata: Metadata = {
-  title: "AI Feedback Review",
-  description: "Compare highlighted AI results with actual values.",
+  title: "PigFactory AI",
+  description: "AI Feedback System for comparing AI results with actual values.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

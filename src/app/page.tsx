@@ -25,6 +25,7 @@ import {
   User,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 type AiRecord = {
@@ -1085,11 +1086,13 @@ function Sidebar({
   return (
     <aside className="hidden border-r border-[#e3e8f0] bg-white lg:flex lg:flex-col">
       <div className="flex h-24 items-center gap-3 border-b border-[#edf1f6] px-6">
-        <div className="relative grid size-12 place-items-center rounded-full bg-[#ffe4ef] text-sm font-black text-[#ef3e8f]">
-          <span className="absolute -left-1 top-1 size-4 rounded-full bg-[#ffc6dc]" />
-          <span className="absolute -right-1 top-1 size-4 rounded-full bg-[#ffc6dc]" />
-          PF
-        </div>
+        <Image
+          src="/logo.png"
+          alt="PigFactory AI"
+          width={56}
+          height={56}
+          className="size-14 shrink-0 rounded-md object-contain"
+        />
         <div>
           <h1 className="text-xl font-bold tracking-tight">PigFactory AI</h1>
           <p className="text-sm text-slate-500">AI Feedback System</p>
