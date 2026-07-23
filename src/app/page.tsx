@@ -331,7 +331,7 @@ function score(record: AiRecord, actual: string) {
 function scoreLabel(value: number | null) {
   if (value === null) return "รอข้อมูล";
   if (value >= 80) return "ดี";
-  if (value >= 60) return "ควรปรับปรุง";
+  if (value >= 60) return "ต่างปานกลาง";
   return "ต่างกันมาก";
 }
 
@@ -715,7 +715,7 @@ export default function Home() {
   const [week, setWeek] = useState("");
   const [metricFilters, setMetricFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([
-    "ควรปรับปรุง",
+    "ต่างปานกลาง",
     "ต่างกันมาก",
   ]);
   const [activeTab, setActiveTab] = useState<AppTab>("feedback");
@@ -812,7 +812,7 @@ export default function Home() {
       ),
     ).sort((a, b) => Number(a) - Number(b));
   }, [feedbackRecords, selectedFactory]);
-  const selectedWeek = week && weekOptions.includes(week) ? week : "";
+  const selectedWeek = week && weekOptions.includes(week) ? week : (weekOptions[weekOptions.length - 1] ?? "");
 
   const summaryRows = useMemo(() => {
     return feedbackRecords.filter((record) => {
@@ -1254,7 +1254,7 @@ function WeekSelectTile({
           value={value}
           onChange={(event) => onChange(event.target.value)}
         >
-          <option value="">ทุกสัปดาห์</option>
+          {weeks.length === 0 ? <option value="">รอข้อมูลสัปดาห์</option> : null}
           {weeks.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -1322,7 +1322,7 @@ function ComparisonCard({
             แสดง {rows.length.toLocaleString("th-TH")} รายการ
           </span>
           <Legend color="bg-emerald-500" label="ดี" />
-          <Legend color="bg-orange-500" label="ควรปรับปรุง" />
+          <Legend color="bg-orange-500" label="ต่างปานกลาง" />
           <Legend color="bg-red-500" label="ต่างกันมาก" />
         </div>
       </div>
@@ -1539,7 +1539,7 @@ function StatusFilterBox({
   values: string[];
   onChange: (values: string[]) => void;
 }) {
-  const statuses = ["ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"];
+  const statuses = ["ดี", "ต่างปานกลาง", "ต่างกันมาก", "รอข้อมูล"];
 
   function toggleStatus(option: string) {
     onChange(
@@ -1637,7 +1637,7 @@ function SummaryCard({
       : closePercent >= 80
         ? { color: "#39b87f", soft: "#ecfdf5", label: "ดี" }
         : closePercent >= 60
-          ? { color: "#f59e0b", soft: "#fff7ed", label: "ควรปรับปรุง" }
+        ? { color: "#f59e0b", soft: "#fff7ed", label: "ต่างปานกลาง" }
           : { color: "#e11d48", soft: "#fff1f2", label: "ต่างกันมาก" };
 
   return (
@@ -1669,7 +1669,7 @@ function SummaryCard({
         </div>
         <div className="mt-6 space-y-3">
           <SummaryPill tone="good" label="ดี (ต่างกันน้อย)" value={`${goodCount.toLocaleString("th-TH")} ตัวชี้วัด`} />
-          <SummaryPill tone="warn" label="ควรปรับปรุง" value={`${warningCount.toLocaleString("th-TH")} ตัวชี้วัด`} />
+          <SummaryPill tone="warn" label="ต่างปานกลาง" value={`${warningCount.toLocaleString("th-TH")} ตัวชี้วัด`} />
           <SummaryPill tone="bad" label="ต่างกันมาก" value={`${badCount.toLocaleString("th-TH")} ตัวชี้วัด`} />
         </div>
       </div>
@@ -1801,6 +1801,10 @@ function TransferComparison({
   const [groupFilters, setGroupFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [weekFilters, setWeekFilters] = useState<string[]>([]);
+  const [transferStatusFilters, setTransferStatusFilters] = useState<string[]>([
+    "ต่างปานกลาง",
+    "ต่างกันมาก",
+  ]);
   const rowsWithActual = useMemo(
     () =>
       records.map((record) => {
@@ -1863,7 +1867,12 @@ function TransferComparison({
     const matchesWeek =
       activeWeekFilters.length === 0 ||
       record.weeks.some((week) => activeWeekFilters.includes(week));
-    return matchesSource && matchesDestination && matchesGroup && matchesType && matchesWeek;
+    const recordStatus = scoreLabel(
+      transferScore(record.aiTransfer, record.actualTransfer),
+    );
+    const matchesStatus =
+      transferStatusFilters.length === 0 || transferStatusFilters.includes(recordStatus);
+    return matchesSource && matchesDestination && matchesGroup && matchesType && matchesWeek && matchesStatus;
   });
 
   function transferScore(aiValue: number | null, actualValue: number | null) {
@@ -1888,7 +1897,7 @@ function TransferComparison({
           </span>
         </div>
 
-        <div className="mb-4 grid gap-3 xl:grid-cols-5">
+        <div className="mb-4 grid gap-3 xl:grid-cols-6">
           <TransferFilterBox
             label="สัปดาห์"
             options={weeks}
@@ -1913,6 +1922,12 @@ function TransferComparison({
             options={productTypes}
             values={typeFilters}
             onChange={setTypeFilters}
+          />
+          <TransferFilterBox
+            label="สถานะ"
+            options={["ดี", "ต่างปานกลาง", "ต่างกันมาก", "รอข้อมูล"]}
+            values={transferStatusFilters}
+            onChange={setTransferStatusFilters}
           />
         </div>
 
