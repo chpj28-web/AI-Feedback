@@ -1800,13 +1800,14 @@ function TransferComparison({
   const [destinationFilters, setDestinationFilters] = useState<string[]>([]);
   const [groupFilters, setGroupFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [weekFilters, setWeekFilters] = useState<string[]>([]);
   const rowsWithActual = useMemo(
     () =>
       records.map((record) => {
         const actual = actuals[transferKey(record.source, record.destination, record.productGroup)];
         return {
           ...record,
-          actualTransfer: actual?.actualTransfer ?? null,
+          actualTransfer: actual?.actualTransfer ?? 0,
           actualProductTypes: actual?.productTypes ?? [],
         };
       }),
@@ -1837,6 +1838,19 @@ function TransferComparison({
       ).sort((a, b) => a.localeCompare(b, "th")),
     [rowsWithActual],
   );
+  const weeks = useMemo(
+    () =>
+      Array.from(new Set(rowsWithActual.flatMap((record) => record.weeks))).sort(
+        (a, b) => Number(b) - Number(a),
+      ),
+    [rowsWithActual],
+  );
+  const activeWeekFilters =
+    weekFilters.length > 0 && weekFilters.every((week) => weeks.includes(week))
+      ? weekFilters
+      : weeks[0]
+        ? [weeks[0]]
+        : [];
   const filteredRows = rowsWithActual.filter((record) => {
     const matchesSource = sourceFilters.length === 0 || sourceFilters.includes(record.source);
     const matchesDestination =
@@ -1846,7 +1860,10 @@ function TransferComparison({
       typeFilters.length === 0 ||
       typeFilters.includes(record.productType) ||
       record.actualProductTypes.some((type) => typeFilters.includes(type));
-    return matchesSource && matchesDestination && matchesGroup && matchesType;
+    const matchesWeek =
+      activeWeekFilters.length === 0 ||
+      record.weeks.some((week) => activeWeekFilters.includes(week));
+    return matchesSource && matchesDestination && matchesGroup && matchesType && matchesWeek;
   });
 
   function transferScore(aiValue: number | null, actualValue: number | null) {
@@ -1871,7 +1888,13 @@ function TransferComparison({
           </span>
         </div>
 
-        <div className="mb-4 grid gap-3 xl:grid-cols-4">
+        <div className="mb-4 grid gap-3 xl:grid-cols-5">
+          <TransferFilterBox
+            label="สัปดาห์"
+            options={weeks}
+            values={activeWeekFilters}
+            onChange={setWeekFilters}
+          />
           <TransferFilterBox label="ต้นทาง" options={sources} values={sourceFilters} onChange={setSourceFilters} />
           <TransferFilterBox
             label="ปลายทาง"
@@ -1895,7 +1918,21 @@ function TransferComparison({
 
         <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
           <div className="max-h-[680px] overflow-auto">
-            <table className="w-full min-w-[1420px] border-collapse text-sm">
+            <table className="w-full min-w-[1360px] border-collapse text-sm">
+              <colgroup>
+                <col />
+                <col />
+                <col />
+                <col className="w-48" />
+                <col />
+                <col />
+                <col />
+                <col />
+                <col />
+                <col />
+                <col />
+                <col />
+              </colgroup>
               <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
                 <tr>
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ต้นทาง</th>
@@ -1941,10 +1978,10 @@ function TransferComparison({
                       <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">
                         {record.productGroup}
                       </td>
-                      <td className="border-r border-[#e8edf4] px-4 py-3">
-                        <p className="font-medium">{record.productType}</p>
+                      <td className="max-w-48 border-r border-[#e8edf4] px-3 py-3">
+                        <p className="truncate font-medium">{record.productType}</p>
                         {record.actualProductTypes.length > 0 ? (
-                          <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                          <p className="mt-1 line-clamp-1 text-xs text-slate-500">
                             Actual: {record.actualProductTypes.join(", ")}
                           </p>
                         ) : null}
