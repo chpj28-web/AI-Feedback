@@ -511,7 +511,6 @@ export default function Home() {
   const [data, setData] = useState<AiData | null>(null);
   const [sheet, setSheet] = useState(allSheets);
   const [factory, setFactory] = useState("");
-  const [query, setQuery] = useState("");
   const [metricFilters, setMetricFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([
     "ควรปรับปรุง",
@@ -597,7 +596,6 @@ export default function Home() {
   }, [feedbackRecords, selectedFactory]);
 
   const filtered = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
     return feedbackRecords.filter((record) => {
       const matchesSheet = sheet === allSheets || record.sheet === sheet;
       const matchesFactory = !selectedFactory || record.factory === selectedFactory;
@@ -606,15 +604,10 @@ export default function Home() {
       const recordStatus = scoreLabel(score(record, feedback[record.id]?.actual ?? ""));
       const matchesStatus =
         statusFilters.length === 0 || statusFilters.includes(recordStatus);
-      const matchesQuery =
-        !normalizedQuery ||
-        `${record.metric} ${record.factory} ${record.sheet}`
-          .toLowerCase()
-          .includes(normalizedQuery);
 
-      return matchesSheet && matchesFactory && matchesMetric && matchesStatus && matchesQuery;
+      return matchesSheet && matchesFactory && matchesMetric && matchesStatus;
     });
-  }, [feedback, feedbackRecords, metricFilters, query, selectedFactory, sheet, statusFilters]);
+  }, [feedback, feedbackRecords, metricFilters, selectedFactory, sheet, statusFilters]);
 
   const tableRows = filtered;
   const scores = tableRows
@@ -654,7 +647,6 @@ export default function Home() {
       setUploadedNames((current) => ({ ...current, ai: file.name }));
       setSheet(allSheets);
       setFactory("");
-      setQuery("");
       window.localStorage.setItem(uploadedDataKey, JSON.stringify(uploadedData));
       setUploadStatus({
         tone: "success",
@@ -798,8 +790,6 @@ export default function Home() {
 
                 <section className="grid gap-5 xl:grid-cols-[1fr_300px]">
                   <ComparisonCard
-                    query={query}
-                    setQuery={setQuery}
                     metricFilters={metricFilters}
                     setMetricFilters={setMetricFilters}
                     metrics={metrics}
@@ -986,8 +976,6 @@ function InfoTile({
 }
 
 function ComparisonCard({
-  query,
-  setQuery,
   metricFilters,
   setMetricFilters,
   metrics,
@@ -997,8 +985,6 @@ function ComparisonCard({
   feedback,
   updateFeedback,
 }: {
-  query: string;
-  setQuery: (query: string) => void;
   metricFilters: string[];
   setMetricFilters: (metrics: string[]) => void;
   metrics: string[];
@@ -1030,24 +1016,15 @@ function ComparisonCard({
         </div>
       </div>
 
-      <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_260px_180px]">
-        <label className="relative block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            className="h-11 w-full rounded-md border border-[#dfe6ef] pl-10 pr-3 text-sm outline-none focus:border-[#ef4b98]"
-            placeholder="ค้นหาตัวชี้วัด"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
-        <MultiSelectBox
-          label="ตัวแปร"
+      <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_220px]">
+        <SearchableMultiSelectBox
+          label="ตัวแปร / ตัวชี้วัด"
           emptyLabel="ทุกตัวแปร"
           options={metrics}
           values={metricFilters}
           onChange={setMetricFilters}
         />
-        <MultiSelectBox
+        <SearchableMultiSelectBox
           label="สถานะ"
           emptyLabel="ทุกสถานะ"
           options={["ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"]}
@@ -1187,7 +1164,7 @@ function Legend({ color, label }: { color: string; label: string }) {
   );
 }
 
-function MultiSelectBox({
+function SearchableMultiSelectBox({
   label,
   emptyLabel,
   options,
@@ -1200,6 +1177,11 @@ function MultiSelectBox({
   values: string[];
   onChange: (values: string[]) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const filteredOptions = options.filter((option) =>
+    option.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
   function toggle(option: string) {
     onChange(
       values.includes(option)
@@ -1227,8 +1209,17 @@ function MultiSelectBox({
             {emptyLabel}
           </button>
         </div>
+        <label className="relative mb-3 block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            className="h-10 w-full rounded-md border border-[#dfe6ef] pl-9 pr-3 text-sm outline-none focus:border-[#ef4b98]"
+            placeholder="ค้นหาและเลือกหลายตัวแปร..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
         <div className="max-h-48 space-y-2 overflow-auto pr-1">
-        {options.map((option) => (
+        {filteredOptions.map((option) => (
           <label key={option} className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -1239,6 +1230,9 @@ function MultiSelectBox({
             <span className="leading-5">{option}</span>
           </label>
         ))}
+        {filteredOptions.length === 0 && (
+          <p className="py-3 text-center text-sm text-slate-500">ไม่พบตัวแปร</p>
+        )}
         </div>
       </div>
     </details>
