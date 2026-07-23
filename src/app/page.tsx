@@ -741,7 +741,23 @@ export default function Home() {
       .then((response) => response.json())
       .then((defaultData: AiData) => {
         const uploaded = window.localStorage.getItem(uploadedDataKey);
-        setData(uploaded ? JSON.parse(uploaded) : defaultData);
+        if (!uploaded) {
+          setData(defaultData);
+          return;
+        }
+
+        const uploadedData = JSON.parse(uploaded) as AiData;
+        const needsTransferMigration =
+          (!uploadedData.transferRecords || uploadedData.transferRecords.length === 0) &&
+          uploadedData.sourceFile === defaultData.sourceFile;
+        setData(
+          needsTransferMigration
+            ? {
+                ...uploadedData,
+                transferRecords: defaultData.transferRecords ?? [],
+              }
+            : uploadedData,
+        );
       });
 
     fetch("/actual-feedback-data.json")
