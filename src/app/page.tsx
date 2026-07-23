@@ -110,7 +110,7 @@ const numberFormatter = new Intl.NumberFormat("th-TH", {
   maximumFractionDigits: 2,
 });
 
-const aiFallbackMetrics: Record<string, string[]> = {
+const rememberedFeedbackMetrics: Record<string, string[]> = {
   "1. ปริมาณตัดแต่ง": ["จำนวนหมูเข้าตัดแต่ง (head)"],
   "2. ปริมาณ Supply": [
     "Production (kg)",
@@ -317,19 +317,19 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
     });
 
     const family = sheetFamily(worksheet.name);
-    const fallbackMetrics = aiFallbackMetrics[family] ?? [];
+    const rememberedMetrics = rememberedFeedbackMetrics[family] ?? [];
     const metricColumns =
-      yellowColumns.length > 0
-        ? yellowColumns.map((column) => ({
-            column,
-            metric: headers[column - 1],
-          }))
-        : fallbackMetrics
+      rememberedMetrics.length > 0
+        ? rememberedMetrics
             .map((metric) => ({
               column: headerIndex(headers, metric),
               metric,
             }))
-            .filter((item) => item.column > 0);
+            .filter((item) => item.column > 0)
+        : yellowColumns.map((column) => ({
+            column,
+            metric: headers[column - 1],
+          }));
 
     if (metricColumns.length === 0) continue;
 
@@ -405,7 +405,7 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
 
   if (records.length === 0) {
     throw new Error(
-      "ไฟล์นี้ไม่พบคอลัมน์ผล AI ตามโครงเดิม กรุณาอัปโหลดไฟล์ผล AI หรือเลือกไฟล์นี้ในช่อง Actual",
+      "ไฟล์นี้ไม่พบหัวข้อ feedback ที่ระบบจำไว้ กรุณาตรวจว่าหัวคอลัมน์ตรงกับไฟล์ config สีเหลืองชุดแรก",
     );
   }
 
@@ -600,9 +600,9 @@ export default function Home() {
       window.localStorage.setItem(uploadedDataKey, JSON.stringify(uploadedData));
       setUploadStatus({
         tone: "success",
-        message: `อัปโหลดสำเร็จ: พบ ${uploadedData.records.length.toLocaleString(
+        message: `อัปโหลดสำเร็จ: โหลด ${uploadedData.records.length.toLocaleString(
           "th-TH",
-        )} รายการจากคอลัมน์สีเหลือง`,
+        )} รายการจากหัวข้อ feedback ที่ระบบจำไว้`,
       });
     } catch (error) {
       setUploadStatus({
@@ -1197,7 +1197,7 @@ function UploadAiPanel({
         <div className="grid gap-5 lg:grid-cols-2">
           <UploadBox
             title="1. ไฟล์ผลลัพธ์ AI"
-            description="ไฟล์ sigmas หรือไฟล์ผล AI ที่มีชีตและหัวคอลัมน์ตามโครงเดิม ใช้สำหรับอ่านค่าที่ AI ทำนาย"
+            description="ไฟล์ sigmas หรือไฟล์ผล AI ไม่จำเป็นต้องมีสีเหลืองแล้ว แต่หัวคอลัมน์ต้องตรงกับหัวข้อ feedback ที่ระบบจำไว้"
             buttonLabel={isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์ผล AI"}
             fileName={uploadedNames.ai ?? data?.sourceFile}
             disabled={isUploading}
@@ -1216,7 +1216,8 @@ function UploadAiPanel({
         <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
           <p className="font-bold">ลำดับการใช้งาน</p>
           <p className="mt-1">
-            อัปโหลดไฟล์ผล AI ก่อน จากนั้นอัปโหลดไฟล์ Actual ระบบจะใช้ชื่อชีต โรงงาน และ mapping
+            ระบบจำหัวข้อจากคอลัมน์สีเหลืองชุดแรกไว้แล้ว ไฟล์ใหม่ไม่ต้องไฮไลต์สีเหลืองอีก
+            ให้อัปโหลดไฟล์ผล AI ก่อน จากนั้นอัปโหลดไฟล์ Actual ระบบจะใช้ชื่อชีต โรงงาน และ mapping
             ของคอลัมน์ เช่น Production (kg) ↔ ProductionWeight, Quota (kg) ↔ Quota เพื่อเติมค่าจริง
             ถ้าเลือกไฟล์ Actual ผิดช่อง ระบบจะพยายามส่งต่อไปประมวลผลแบบ Actual ให้อัตโนมัติ
           </p>
@@ -1251,7 +1252,7 @@ function UploadAiPanel({
           <InfoRow icon={<Factory size={22} />} label="จำนวนโรงงาน" value={`${factories.length}`} />
           <InfoRow icon={<BarChart3 size={22} />} label="จำนวนชีต" value={`${sheets.length}`} />
         </Panel>
-        <Panel title="คอลัมน์สีเหลืองที่พบ">
+        <Panel title="หัวข้อ Feedback ที่ระบบจำไว้">
           <div className="max-h-[360px] space-y-2 overflow-auto pr-1">
             {metrics.slice(0, 18).map((metric) => (
               <div
