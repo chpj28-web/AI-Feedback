@@ -1143,7 +1143,7 @@ function ComparisonCard({
                           <Gauge size={18} />
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate font-semibold">{record.metric}</p>
+                          <p className="truncate font-semibold leading-tight">{record.metric}</p>
                         </div>
                       </div>
                     </td>
