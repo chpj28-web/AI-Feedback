@@ -404,7 +404,9 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
   }
 
   if (records.length === 0) {
-    throw new Error("ไม่พบหัวคอลัมน์ที่ไฮไลต์สีเหลืองในไฟล์นี้");
+    throw new Error(
+      "ไฟล์นี้ไม่พบคอลัมน์ผล AI ตามโครงเดิม กรุณาอัปโหลดไฟล์ผล AI หรือเลือกไฟล์นี้ในช่อง Actual",
+    );
   }
 
   records.sort((a, b) =>
@@ -580,6 +582,11 @@ export default function Home() {
   }
 
   async function handleAiUpload(file: File) {
+    if (file.name.toLowerCase().includes("actual")) {
+      await handleActualUpload(file);
+      return;
+    }
+
     setIsUploading(true);
     setUploadStatus(null);
 
@@ -1190,7 +1197,7 @@ function UploadAiPanel({
         <div className="grid gap-5 lg:grid-cols-2">
           <UploadBox
             title="1. ไฟล์ผลลัพธ์ AI"
-            description="ไฟล์ sigmas หรือไฟล์ผล AI ที่มีชีตและหัวคอลัมน์ตามโครงเดิม ระบบจะอ่านค่าที่ต้องนำมาเทียบ"
+            description="ไฟล์ sigmas หรือไฟล์ผล AI ที่มีชีตและหัวคอลัมน์ตามโครงเดิม ใช้สำหรับอ่านค่าที่ AI ทำนาย"
             buttonLabel={isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์ผล AI"}
             fileName={uploadedNames.ai ?? data?.sourceFile}
             disabled={isUploading}
@@ -1198,7 +1205,7 @@ function UploadAiPanel({
           />
           <UploadBox
             title="2. ไฟล์ค่าจริง Actual"
-            description="ไฟล์ Actual.xlsx ระบบจะจับคู่กับผล AI แล้วเติมค่า Actual ลงในตารางเปรียบเทียบให้อัตโนมัติ"
+            description="ไฟล์ Actual.xlsx ต้องอัปโหลดช่องนี้ ระบบจะจับคู่กับผล AI แล้วเติมค่า Actual ลงตารางอัตโนมัติ"
             buttonLabel={isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์ Actual"}
             fileName={uploadedNames.actual}
             disabled={isUploading || !data?.records.length}
@@ -1211,6 +1218,7 @@ function UploadAiPanel({
           <p className="mt-1">
             อัปโหลดไฟล์ผล AI ก่อน จากนั้นอัปโหลดไฟล์ Actual ระบบจะใช้ชื่อชีต โรงงาน และ mapping
             ของคอลัมน์ เช่น Production (kg) ↔ ProductionWeight, Quota (kg) ↔ Quota เพื่อเติมค่าจริง
+            ถ้าเลือกไฟล์ Actual ผิดช่อง ระบบจะพยายามส่งต่อไปประมวลผลแบบ Actual ให้อัตโนมัติ
           </p>
         </div>
 
