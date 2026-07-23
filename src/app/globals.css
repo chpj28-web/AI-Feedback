@@ -76,6 +76,54 @@ body {
   .text-sm {
     font-size: 0.9rem;
   }
+
+  .mobile-table-frame {
+    margin-inline: -0.25rem;
+    border-radius: 0.5rem;
+    box-shadow: inset -18px 0 22px -24px rgba(239, 62, 143, 0.72);
+  }
+
+  .feedback-table {
+    min-width: 840px;
+  }
+
+  .transfer-table {
+    min-width: 1080px;
+  }
+
+  .feedback-table th,
+  .feedback-table td,
+  .transfer-table th,
+  .transfer-table td {
+    padding: 0.55rem 0.65rem;
+    vertical-align: middle;
+  }
+
+  .feedback-table th:first-child,
+  .feedback-table td:first-child,
+  .transfer-table th:first-child,
+  .transfer-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 8px 0 12px -14px rgba(15, 23, 42, 0.65);
+  }
+
+  .feedback-table thead th:first-child,
+  .transfer-table thead th:first-child {
+    z-index: 2;
+    background: #fff5fa;
+  }
+
+  .feedback-table input,
+  .transfer-table input {
+    min-width: 7rem;
+  }
+
+  details > div {
+    min-width: min(88vw, 24rem);
+  }
 }
 
 button,

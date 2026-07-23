@@ -962,20 +962,20 @@ export default function Home() {
 
         <section className="min-w-0">
           <header className="sticky top-0 z-20 border-b border-[#f5b4cf] bg-white/90 backdrop-blur">
-            <div className="flex min-h-24 flex-col items-start justify-between gap-4 px-4 py-4 sm:px-8 xl:flex-row xl:items-center">
+            <div className="flex min-h-20 flex-col items-start justify-between gap-3 px-4 py-3 sm:min-h-24 sm:px-8 sm:py-4 xl:flex-row xl:items-center">
               <div className="flex w-full items-center gap-4 xl:w-auto xl:gap-5">
-                <button className="grid size-11 place-items-center rounded-md text-slate-600 hover:bg-slate-100">
+                <button className="grid size-10 shrink-0 place-items-center rounded-md text-slate-600 hover:bg-slate-100 sm:size-11">
                   <Menu size={28} />
                 </button>
                 <div>
-                  <h1 className="text-xl font-bold leading-snug sm:text-2xl">
+                  <h1 className="text-lg font-bold leading-snug sm:text-2xl">
                     {activeTab === "upload"
                       ? "อัปโหลดผล AI"
                       : activeTab === "transfer"
                         ? "เทียบผล AI: การโอนสินค้า"
                         : "บันทึก Feedback: เทียบผล AI กับค่าจริง"}
                   </h1>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-500">
                     {activeTab === "upload"
                       ? "นำเข้าไฟล์ Excel ที่มีโครงสร้างชีตและหัวคอลัมน์แบบเดิม"
                       : activeTab === "transfer"
@@ -1166,7 +1166,7 @@ function MobileTabBar({
         return (
           <button
             key={item.label}
-            className={`flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-bold ${
+            className={`flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-bold shadow-sm ${
               active
                 ? "border-[#ef3e8f] bg-[#ffe8f1] text-[#ef3e8f]"
                 : "border-[#f5b4cf] bg-white/90 text-slate-600"
@@ -1394,9 +1394,9 @@ function ComparisonCard({
         <StatusFilterBox values={statusFilters} onChange={setStatusFilters} />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
-        <div className="max-h-[640px] overflow-auto">
-          <table className="w-full min-w-[1080px] border-collapse text-sm">
+        <div className="mobile-table-frame overflow-hidden rounded-lg border border-[#dfe6ef]">
+          <div className="max-h-[640px] overflow-auto">
+          <table className="feedback-table w-full min-w-[1080px] border-collapse text-sm">
             <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
               <tr>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ตัวชี้วัด</th>
@@ -1989,9 +1989,9 @@ function TransferComparison({
           />
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
+        <div className="mobile-table-frame overflow-hidden rounded-lg border border-[#dfe6ef]">
           <div className="max-h-[680px] overflow-auto">
-            <table className="w-full min-w-[1360px] border-collapse text-sm">
+            <table className="transfer-table w-full min-w-[1360px] border-collapse text-sm">
               <colgroup>
                 <col />
                 <col />
