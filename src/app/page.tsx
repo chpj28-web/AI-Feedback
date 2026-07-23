@@ -499,8 +499,11 @@ export default function Home() {
   const [sheet, setSheet] = useState(allSheets);
   const [factory, setFactory] = useState("");
   const [query, setQuery] = useState("");
-  const [metricFilter, setMetricFilter] = useState("ทุกตัวแปร");
-  const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
+  const [metricFilters, setMetricFilters] = useState<string[]>([]);
+  const [statusFilters, setStatusFilters] = useState<string[]>([
+    "ควรปรับปรุง",
+    "ต่างกันมาก",
+  ]);
   const [activeTab, setActiveTab] = useState<AppTab>("feedback");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedNames, setUploadedNames] = useState<{ ai?: string; actual?: string }>({});
@@ -551,7 +554,6 @@ export default function Home() {
   );
   const metrics = useMemo(
     () => [
-      "ทุกตัวแปร",
       ...Array.from(new Set(records.map((record) => record.metric))).sort((a, b) =>
         a.localeCompare(b, "th"),
       ),
@@ -568,10 +570,10 @@ export default function Home() {
       const matchesSheet = sheet === allSheets || record.sheet === sheet;
       const matchesFactory = !selectedFactory || record.factory === selectedFactory;
       const matchesMetric =
-        metricFilter === "ทุกตัวแปร" || record.metric === metricFilter;
+        metricFilters.length === 0 || metricFilters.includes(record.metric);
       const recordStatus = scoreLabel(score(record, feedback[record.id]?.actual ?? ""));
       const matchesStatus =
-        statusFilter === "ทุกสถานะ" || recordStatus === statusFilter;
+        statusFilters.length === 0 || statusFilters.includes(recordStatus);
       const matchesQuery =
         !normalizedQuery ||
         `${record.metric} ${record.factory} ${record.sheet}`
@@ -580,7 +582,7 @@ export default function Home() {
 
       return matchesSheet && matchesFactory && matchesMetric && matchesStatus && matchesQuery;
     });
-  }, [feedback, metricFilter, query, records, selectedFactory, sheet, statusFilter]);
+  }, [feedback, metricFilters, query, records, selectedFactory, sheet, statusFilters]);
 
   const tableRows = filtered;
   const scores = tableRows
@@ -734,26 +736,12 @@ export default function Home() {
                     <option key={option}>{option}</option>
                   ))}
                 </select>
-                <select
-                  className="h-11 min-w-56 rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-medium shadow-sm"
-                  value={metricFilter}
-                  onChange={(event) => setMetricFilter(event.target.value)}
-                >
-                  {metrics.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-                <select
-                  className="h-11 min-w-40 rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-medium shadow-sm"
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                >
-                  {["ทุกสถานะ", "ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"].map(
-                    (option) => (
-                      <option key={option}>{option}</option>
-                    ),
-                  )}
-                </select>
+                <TopButton>
+                  ตัวแปร: {metricFilters.length === 0 ? "ทั้งหมด" : metricFilters.length}
+                </TopButton>
+                <TopButton>
+                  สถานะ: {statusFilters.length === 0 ? "ทั้งหมด" : statusFilters.length}
+                </TopButton>
                 <TopButton>
                   <HelpCircle size={17} />
                   วิธีใช้งาน
@@ -783,11 +771,11 @@ export default function Home() {
                   <ComparisonCard
                     query={query}
                     setQuery={setQuery}
-                    metricFilter={metricFilter}
-                    setMetricFilter={setMetricFilter}
+                    metricFilters={metricFilters}
+                    setMetricFilters={setMetricFilters}
                     metrics={metrics}
-                    statusFilter={statusFilter}
-                    setStatusFilter={setStatusFilter}
+                    statusFilters={statusFilters}
+                    setStatusFilters={setStatusFilters}
                     rows={tableRows}
                     feedback={feedback}
                     updateFeedback={updateFeedback}
@@ -924,22 +912,22 @@ function InfoTile({
 function ComparisonCard({
   query,
   setQuery,
-  metricFilter,
-  setMetricFilter,
+  metricFilters,
+  setMetricFilters,
   metrics,
-  statusFilter,
-  setStatusFilter,
+  statusFilters,
+  setStatusFilters,
   rows,
   feedback,
   updateFeedback,
 }: {
   query: string;
   setQuery: (query: string) => void;
-  metricFilter: string;
-  setMetricFilter: (metric: string) => void;
+  metricFilters: string[];
+  setMetricFilters: (metrics: string[]) => void;
   metrics: string[];
-  statusFilter: string;
-  setStatusFilter: (status: string) => void;
+  statusFilters: string[];
+  setStatusFilters: (statuses: string[]) => void;
   rows: AiRecord[];
   feedback: Record<string, Feedback>;
   updateFeedback: (id: string, patch: Partial<Feedback>) => void;
@@ -976,24 +964,20 @@ function ComparisonCard({
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
-        <select
-          className="h-11 rounded-md border border-[#dfe6ef] bg-white px-3 text-sm font-medium outline-none focus:border-[#ef4b98]"
-          value={metricFilter}
-          onChange={(event) => setMetricFilter(event.target.value)}
-        >
-          {metrics.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </select>
-        <select
-          className="h-11 rounded-md border border-[#dfe6ef] bg-white px-3 text-sm font-medium outline-none focus:border-[#ef4b98]"
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-        >
-          {["ทุกสถานะ", "ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"].map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </select>
+        <MultiSelectBox
+          label="ตัวแปร"
+          emptyLabel="ทุกตัวแปร"
+          options={metrics}
+          values={metricFilters}
+          onChange={setMetricFilters}
+        />
+        <MultiSelectBox
+          label="สถานะ"
+          emptyLabel="ทุกสถานะ"
+          options={["ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"]}
+          values={statusFilters}
+          onChange={setStatusFilters}
+        />
       </div>
 
       <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
@@ -1104,11 +1088,6 @@ function ComparisonCard({
                             size={17}
                           />
                         )}
-                        {missingRequiredComment && (
-                          <p className="mt-1 text-xs font-medium text-red-600">
-                            ต้องกรอกเมื่อสถานะควรปรับปรุงหรือต่างกันมาก
-                          </p>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -1129,6 +1108,56 @@ function Legend({ color, label }: { color: string; label: string }) {
       <span className={`size-2 rounded-full ${color}`} />
       {label}
     </span>
+  );
+}
+
+function MultiSelectBox({
+  label,
+  emptyLabel,
+  options,
+  values,
+  onChange,
+}: {
+  label: string;
+  emptyLabel: string;
+  options: string[];
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  function toggle(option: string) {
+    onChange(
+      values.includes(option)
+        ? values.filter((value) => value !== option)
+        : [...values, option],
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-[#dfe6ef] bg-white p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-xs font-bold text-slate-600">{label}</p>
+        <button
+          className="text-xs font-bold text-[#ef3e8f]"
+          type="button"
+          onClick={() => onChange([])}
+        >
+          {emptyLabel}
+        </button>
+      </div>
+      <div className="max-h-32 space-y-2 overflow-auto pr-1">
+        {options.map((option) => (
+          <label key={option} className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1 size-4 accent-[#ef3e8f]"
+              checked={values.includes(option)}
+              onChange={() => toggle(option)}
+            />
+            <span className="leading-5">{option}</span>
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }
 
