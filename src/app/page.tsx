@@ -42,10 +42,26 @@ type AiRecord = {
   weeks: string[];
 };
 
+type TransferRecord = {
+  id: string;
+  route: string;
+  source: string;
+  destination: string;
+  productGroup: string;
+  productType: string;
+  aiTransfer: number | null;
+  plannedTransfer: number | null;
+  fourWheel: number | null;
+  sixWheel: number | null;
+  tenWheel: number | null;
+  weeks: string[];
+};
+
 type AiData = {
   generatedAt: string;
   sourceFile: string;
   records: AiRecord[];
+  transferRecords?: TransferRecord[];
 };
 
 type Feedback = {
@@ -101,10 +117,35 @@ type Aggregate = {
   weeks: Set<string>;
 };
 
+type TransferAggregate = {
+  route: string;
+  source: string;
+  destination: string;
+  productGroup: string;
+  productType: string;
+  aiTransfer: number;
+  plannedTransfer: number;
+  weeks: Set<string>;
+};
+
+type TransferActualAggregate = {
+  actualTransfer: number;
+  productTypes: Set<string>;
+};
+
+type TransferActualPayload = Record<
+  string,
+  {
+    actualTransfer: number;
+    productTypes: string[];
+  }
+>;
+
 const allSheets = "ทั้งหมด";
 const storageKey = "ai-feedback-review-v1";
 const uploadedDataKey = "ai-feedback-uploaded-ai-data-v2";
 const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v2";
+const uploadedActualTransferKey = "ai-feedback-uploaded-actual-transfer-v1";
 const numberFormatter = new Intl.NumberFormat("th-TH", {
   maximumFractionDigits: 2,
 });
@@ -311,12 +352,12 @@ function isTransferRecord(record: AiRecord) {
   return record.sheet === "4. โอน" || record.sheet === "5. การใช้รถ";
 }
 
-function routeParts(factory: string) {
-  const [source, destination] = factory.split(" -> ");
-  return {
-    source: source?.trim() || "ไม่ระบุ",
-    destination: destination?.trim() || "ไม่ระบุ",
-  };
+function transferKey(source: string, destination: string, productGroup: string) {
+  return [source, destination, productGroup].join("|");
+}
+
+function transferRowId(source: string, destination: string, productGroup: string, productType: string) {
+  return [source, destination, productGroup, productType].join("|");
 }
 
 async function parseAiWorkbook(file: File): Promise<AiData> {
@@ -325,6 +366,15 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
   await workbook.xlsx.load(await file.arrayBuffer());
 
   const records: AiRecord[] = [];
+  const transferMap = new Map<string, TransferAggregate>();
+  const vehicleMap = new Map<
+    string,
+    {
+      fourWheel: number;
+      sixWheel: number;
+      tenWheel: number;
+    }
+  >();
 
   for (const worksheet of workbook.worksheets) {
     const headers: string[] = [];
@@ -355,12 +405,73 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
 
     const weekCol = headerIndex(headers, "weekNo");
     const map = new Map<string, Aggregate>();
+    const isTransferSheet = family === "4. โอน";
+    const isVehicleSheet = family === "5. การใช้รถ";
+    const sourceCol = firstHeaderIndex(headers, ["SourceWarehouseForPlan1", "SourceWarehouseName"]);
+    const destinationCol = firstHeaderIndex(headers, [
+      "DestinationWarehouseForPlan1",
+      "DestinationWarehouseName",
+    ]);
+    const productGroupCol = firstHeaderIndex(headers, ["ProductForPlan19", "ProductForPlan10"]);
+    const productTypeCol = firstHeaderIndex(headers, ["ProductForPlan19Custom", "ProductName"]);
+    const aiTransferCol = firstHeaderIndex(headers, ["ปริมาณแนะนำโอน (kg)"]);
+    const plannedTransferCol = firstHeaderIndex(headers, ["ปริมาณโอนทั้งหมด (kg)"]);
+    const fourWheelCol = firstHeaderIndex(headers, ["จำนวนรถ_4Wheels"]);
+    const sixWheelCol = firstHeaderIndex(headers, ["จำนวนรถ_6Wheels"]);
+    const tenWheelCol = firstHeaderIndex(headers, ["จำนวนรถ_10Wheels"]);
 
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (rowNumber === 1) return;
 
       const factory = factoryFromRow(row, headers);
       const week = weekCol ? cellText(row.getCell(weekCol).value).trim() : "";
+
+      if (isTransferSheet && sourceCol && destinationCol && productGroupCol && aiTransferCol) {
+        const source = cellText(row.getCell(sourceCol).value).trim() || "ไม่ระบุ";
+        const destination = cellText(row.getCell(destinationCol).value).trim() || "ไม่ระบุ";
+        const productGroup = cellText(row.getCell(productGroupCol).value).trim() || "ไม่ระบุกลุ่ม";
+        const productType =
+          productTypeCol > 0
+            ? cellText(row.getCell(productTypeCol).value).trim() || productGroup
+            : productGroup;
+        const key = transferRowId(source, destination, productGroup, productType);
+        const current =
+          transferMap.get(key) ??
+          ({
+            route: `${source} -> ${destination}`,
+            source,
+            destination,
+            productGroup,
+            productType,
+            aiTransfer: 0,
+            plannedTransfer: 0,
+            weeks: new Set<string>(),
+          } satisfies TransferAggregate);
+        const aiTransfer = numericValue(row.getCell(aiTransferCol).value);
+        const plannedTransfer =
+          plannedTransferCol > 0 ? numericValue(row.getCell(plannedTransferCol).value) : null;
+        if (aiTransfer !== null) current.aiTransfer += aiTransfer;
+        if (plannedTransfer !== null) current.plannedTransfer += plannedTransfer;
+        if (week) current.weeks.add(week);
+        transferMap.set(key, current);
+      }
+
+      if (isVehicleSheet && sourceCol && destinationCol) {
+        const source = cellText(row.getCell(sourceCol).value).trim() || "ไม่ระบุ";
+        const destination = cellText(row.getCell(destinationCol).value).trim() || "ไม่ระบุ";
+        const key = `${source} -> ${destination}`;
+        const current =
+          vehicleMap.get(key) ??
+          ({
+            fourWheel: 0,
+            sixWheel: 0,
+            tenWheel: 0,
+          });
+        current.fourWheel += fourWheelCol > 0 ? numericValue(row.getCell(fourWheelCol).value) ?? 0 : 0;
+        current.sixWheel += sixWheelCol > 0 ? numericValue(row.getCell(sixWheelCol).value) ?? 0 : 0;
+        current.tenWheel += tenWheelCol > 0 ? numericValue(row.getCell(tenWheelCol).value) ?? 0 : 0;
+        vehicleMap.set(key, current);
+      }
 
       for (const { column, metric } of metricColumns) {
         const cell = row.getCell(column);
@@ -435,10 +546,35 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
       .localeCompare([b.sheet, b.factory, b.metric].join("|"), "th"),
   );
 
+  const transferRecords = [...transferMap.values()]
+    .map((item) => {
+      const vehicle = vehicleMap.get(item.route);
+      return {
+        id: transferRowId(item.source, item.destination, item.productGroup, item.productType),
+        route: item.route,
+        source: item.source,
+        destination: item.destination,
+        productGroup: item.productGroup,
+        productType: item.productType,
+        aiTransfer: Number(item.aiTransfer.toFixed(4)),
+        plannedTransfer: Number(item.plannedTransfer.toFixed(4)),
+        fourWheel: vehicle ? Number(vehicle.fourWheel.toFixed(4)) : null,
+        sixWheel: vehicle ? Number(vehicle.sixWheel.toFixed(4)) : null,
+        tenWheel: vehicle ? Number(vehicle.tenWheel.toFixed(4)) : null,
+        weeks: [...item.weeks].sort((a, b) => Number(a) - Number(b)),
+      } satisfies TransferRecord;
+    })
+    .sort((a, b) =>
+      [a.source, a.destination, a.productGroup, a.productType]
+        .join("|")
+        .localeCompare([b.source, b.destination, b.productGroup, b.productType].join("|"), "th"),
+    );
+
   return {
     generatedAt: new Date().toISOString(),
     sourceFile: file.name,
     records,
+    transferRecords,
   };
 }
 
@@ -507,6 +643,71 @@ async function parseActualWorkbook(
   return actualFeedback;
 }
 
+async function parseActualTransferWorkbook(file: File): Promise<TransferActualPayload> {
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook() as unknown as WorkbookLike;
+  await workbook.xlsx.load(await file.arrayBuffer());
+  const values = new Map<string, TransferActualAggregate>();
+
+  for (const worksheet of workbook.worksheets) {
+    if (sheetFamily(worksheet.name) !== "4. โอน") continue;
+
+    const headers: string[] = [];
+    worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      headers[colNumber - 1] = cellText(cell.value).trim();
+    });
+
+    const sourceCol = firstHeaderIndex(headers, ["SourceWarehouseForPlan1", "SourceWarehouseName"]);
+    const destinationCol = firstHeaderIndex(headers, [
+      "DestinationWarehouseForPlan1",
+      "DestinationWarehouseName",
+    ]);
+    const productGroupCol = firstHeaderIndex(headers, ["ProductForPlan19", "ProductForPlan10"]);
+    const productTypeCol = firstHeaderIndex(headers, [
+      "ProductName",
+      "ProductForPlan19Custom",
+      "ProductForPlan10",
+    ]);
+    const weightCol = firstHeaderIndex(headers, ["Weight", "ปริมาณโอนทั้งหมด (kg)"]);
+    if (!sourceCol || !destinationCol || !productGroupCol || !weightCol) continue;
+
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const source = cellText(row.getCell(sourceCol).value).trim() || "ไม่ระบุ";
+      const destination = cellText(row.getCell(destinationCol).value).trim() || "ไม่ระบุ";
+      const productGroup = cellText(row.getCell(productGroupCol).value).trim() || "ไม่ระบุกลุ่ม";
+      const productType =
+        productTypeCol > 0
+          ? cellText(row.getCell(productTypeCol).value).trim() || productGroup
+          : productGroup;
+      const weight = numericValue(row.getCell(weightCol).value);
+      if (weight === null) return;
+
+      const key = transferKey(source, destination, productGroup);
+      const current =
+        values.get(key) ??
+        ({
+          actualTransfer: 0,
+          productTypes: new Set<string>(),
+        } satisfies TransferActualAggregate);
+      current.actualTransfer += weight;
+      if (productType) current.productTypes.add(productType);
+      values.set(key, current);
+    });
+  }
+
+  return Object.fromEntries(
+    [...values.entries()].map(([key, value]) => [
+      key,
+      {
+        actualTransfer: Number(value.actualTransfer.toFixed(4)),
+        productTypes: [...value.productTypes].sort((a, b) => a.localeCompare(b, "th")),
+      },
+    ]),
+  );
+}
+
 export default function Home() {
   const [data, setData] = useState<AiData | null>(null);
   const [sheet, setSheet] = useState(allSheets);
@@ -524,6 +725,11 @@ export default function Home() {
     tone: "success" | "error";
     message: string;
   } | null>(null);
+  const [transferActuals, setTransferActuals] = useState<TransferActualPayload>(() => {
+    if (typeof window === "undefined") return {};
+    const saved = window.localStorage.getItem(uploadedActualTransferKey);
+    return saved ? JSON.parse(saved) : {};
+  });
   const [feedback, setFeedback] = useState<Record<string, Feedback>>(() => {
     if (typeof window === "undefined") return {};
     const saved = window.localStorage.getItem(storageKey);
@@ -547,11 +753,24 @@ export default function Home() {
         });
       })
       .catch(() => undefined);
+
+    fetch("/actual-transfer-data.json")
+      .then((response) => (response.ok ? response.json() : {}))
+      .then((sampleTransfers: TransferActualPayload) => {
+        const uploaded = window.localStorage.getItem(uploadedActualTransferKey);
+        const parsed = uploaded ? (JSON.parse(uploaded) as TransferActualPayload) : {};
+        setTransferActuals(Object.keys(parsed).length > 0 ? parsed : sampleTransfers);
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(feedback));
   }, [feedback]);
+
+  useEffect(() => {
+    window.localStorage.setItem(uploadedActualTransferKey, JSON.stringify(transferActuals));
+  }, [transferActuals]);
 
   const records = useMemo(() => data?.records ?? [], [data]);
   const feedbackRecords = useMemo(
@@ -559,8 +778,8 @@ export default function Home() {
     [records],
   );
   const transferRecords = useMemo(
-    () => records.filter((record) => isTransferRecord(record)),
-    [records],
+    () => data?.transferRecords ?? [],
+    [data],
   );
   const sheets = useMemo(
     () => [allSheets, ...Array.from(new Set(feedbackRecords.map((record) => record.sheet)))],
@@ -681,7 +900,10 @@ export default function Home() {
     setUploadStatus(null);
 
     try {
-      const actualFeedback = await parseActualWorkbook(file, data.records);
+      const [actualFeedback, actualTransferPayload] = await Promise.all([
+        parseActualWorkbook(file, data.records),
+        parseActualTransferWorkbook(file),
+      ]);
       setFeedback((current) => {
         const merged = { ...current };
 
@@ -695,13 +917,15 @@ export default function Home() {
 
         return merged;
       });
+      setTransferActuals(actualTransferPayload);
       window.localStorage.setItem(uploadedActualKey, JSON.stringify(actualFeedback));
+      window.localStorage.setItem(uploadedActualTransferKey, JSON.stringify(actualTransferPayload));
       setUploadedNames((current) => ({ ...current, actual: file.name }));
       setUploadStatus({
         tone: "success",
         message: `เติมค่าจริงสำเร็จ: จับคู่ได้ ${Object.keys(actualFeedback).length.toLocaleString(
           "th-TH",
-        )} รายการ`,
+        )} รายการ / ข้อมูลโอน ${Object.keys(actualTransferPayload).length.toLocaleString("th-TH")} กลุ่ม`,
       });
       setActiveTab("feedback");
     } catch (error) {
@@ -749,15 +973,19 @@ export default function Home() {
                   31/05/2024
                   <CalendarDays size={17} />
                 </TopButton>
-                <select
-                  className="h-11 min-w-48 rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-medium shadow-sm"
-                  value={sheet}
-                  onChange={(event) => setSheet(event.target.value)}
-                >
-                  {sheets.map((option) => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
+                {activeTab === "feedback" ? (
+                  <select
+                    className="h-11 min-w-48 rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-medium shadow-sm"
+                    value={sheet}
+                    onChange={(event) => setSheet(event.target.value)}
+                  >
+                    {sheets.map((option) => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                ) : activeTab === "transfer" ? (
+                  <TopButton>ชีท 4-5</TopButton>
+                ) : null}
                 <TopButton>
                   <HelpCircle size={17} />
                   วิธีใช้งาน
@@ -779,6 +1007,7 @@ export default function Home() {
             ) : activeTab === "transfer" ? (
               <TransferComparison
                 records={transferRecords}
+                actuals={transferActuals}
                 feedback={feedback}
                 updateFeedback={updateFeedback}
               />
@@ -1558,48 +1787,74 @@ function CommentCard({
 
 function TransferComparison({
   records,
+  actuals,
   feedback,
   updateFeedback,
 }: {
-  records: AiRecord[];
+  records: TransferRecord[];
+  actuals: TransferActualPayload;
   feedback: Record<string, Feedback>;
   updateFeedback: (id: string, patch: Partial<Feedback>) => void;
 }) {
-  type TransferRoute = {
-    route: string;
-    source: string;
-    destination: string;
-    transfer?: AiRecord;
-    fourWheel?: AiRecord;
-    sixWheel?: AiRecord;
-    tenWheel?: AiRecord;
-  };
+  const [sourceFilters, setSourceFilters] = useState<string[]>([]);
+  const [destinationFilters, setDestinationFilters] = useState<string[]>([]);
+  const [groupFilters, setGroupFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const rowsWithActual = useMemo(
+    () =>
+      records.map((record) => {
+        const actual = actuals[transferKey(record.source, record.destination, record.productGroup)];
+        return {
+          ...record,
+          actualTransfer: actual?.actualTransfer ?? null,
+          actualProductTypes: actual?.productTypes ?? [],
+        };
+      }),
+    [actuals, records],
+  );
+  const sources = useMemo(
+    () => Array.from(new Set(rowsWithActual.map((record) => record.source))).sort((a, b) => a.localeCompare(b, "th")),
+    [rowsWithActual],
+  );
+  const destinations = useMemo(
+    () =>
+      Array.from(new Set(rowsWithActual.map((record) => record.destination))).sort((a, b) =>
+        a.localeCompare(b, "th"),
+      ),
+    [rowsWithActual],
+  );
+  const productGroups = useMemo(
+    () =>
+      Array.from(new Set(rowsWithActual.map((record) => record.productGroup))).sort((a, b) =>
+        a.localeCompare(b, "th"),
+      ),
+    [rowsWithActual],
+  );
+  const productTypes = useMemo(
+    () =>
+      Array.from(
+        new Set(rowsWithActual.flatMap((record) => [record.productType, ...record.actualProductTypes])),
+      ).sort((a, b) => a.localeCompare(b, "th")),
+    [rowsWithActual],
+  );
+  const filteredRows = rowsWithActual.filter((record) => {
+    const matchesSource = sourceFilters.length === 0 || sourceFilters.includes(record.source);
+    const matchesDestination =
+      destinationFilters.length === 0 || destinationFilters.includes(record.destination);
+    const matchesGroup = groupFilters.length === 0 || groupFilters.includes(record.productGroup);
+    const matchesType =
+      typeFilters.length === 0 ||
+      typeFilters.includes(record.productType) ||
+      record.actualProductTypes.some((type) => typeFilters.includes(type));
+    return matchesSource && matchesDestination && matchesGroup && matchesType;
+  });
 
-  const routes = useMemo(() => {
-    const map = new Map<string, TransferRoute>();
-
-    for (const record of records) {
-      const current: TransferRoute =
-        map.get(record.factory) ??
-        (() => {
-          const parts = routeParts(record.factory);
-          return {
-            route: record.factory,
-            source: parts.source,
-            destination: parts.destination,
-          };
-        })();
-
-      if (record.metric === "ปริมาณแนะนำโอน (kg)") current.transfer = record;
-      if (record.metric === "จำนวนรถ_4Wheels") current.fourWheel = record;
-      if (record.metric === "จำนวนรถ_6Wheels") current.sixWheel = record;
-      if (record.metric === "จำนวนรถ_10Wheels") current.tenWheel = record;
-
-      map.set(record.factory, current);
-    }
-
-    return [...map.values()].filter((item) => item.transfer);
-  }, [records]);
+  function transferScore(aiValue: number | null, actualValue: number | null) {
+    if (aiValue === null || actualValue === null) return null;
+    const denominator = Math.max(Math.abs(actualValue), 1);
+    const errorRate = Math.abs(aiValue - actualValue) / denominator;
+    return Math.max(0, Math.round((1 - errorRate) * 100));
+  }
 
   return (
     <section className="space-y-5">
@@ -1612,17 +1867,41 @@ function TransferComparison({
             </p>
           </div>
           <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
-            {routes.length.toLocaleString("th-TH")} เส้นทาง
+            {filteredRows.length.toLocaleString("th-TH")} รายการ
           </span>
+        </div>
+
+        <div className="mb-4 grid gap-3 xl:grid-cols-4">
+          <TransferFilterBox label="ต้นทาง" options={sources} values={sourceFilters} onChange={setSourceFilters} />
+          <TransferFilterBox
+            label="ปลายทาง"
+            options={destinations}
+            values={destinationFilters}
+            onChange={setDestinationFilters}
+          />
+          <TransferFilterBox
+            label="กลุ่มสินค้า"
+            options={productGroups}
+            values={groupFilters}
+            onChange={setGroupFilters}
+          />
+          <TransferFilterBox
+            label="ชนิดสินค้า"
+            options={productTypes}
+            values={typeFilters}
+            onChange={setTypeFilters}
+          />
         </div>
 
         <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
           <div className="max-h-[680px] overflow-auto">
-            <table className="w-full min-w-[1180px] border-collapse text-sm">
+            <table className="w-full min-w-[1420px] border-collapse text-sm">
               <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
                 <tr>
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ต้นทาง</th>
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ปลายทาง</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">กลุ่มสินค้า</th>
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ชนิดสินค้า</th>
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">AI แนะนำโอน (kg)</th>
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">Actual โอน (kg)</th>
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">ต่างกัน (kg)</th>
@@ -1634,40 +1913,47 @@ function TransferComparison({
                 </tr>
               </thead>
               <tbody>
-                {routes.map((route) => {
-                  const transfer = route.transfer;
-                  if (!transfer) return null;
-
-                  const itemFeedback = feedback[transfer.id] ?? {
+                {filteredRows.map((record) => {
+                  const feedbackId = `transfer|${record.id}`;
+                  const itemFeedback = feedback[feedbackId] ?? {
                     actual: "",
                     accuracy: "",
                     comment: "",
                   };
-                  const matchScore = score(transfer, itemFeedback.actual);
-                  const diff = difference(transfer, itemFeedback.actual);
+                  const actualValue = record.actualTransfer;
+                  const matchScore = transferScore(record.aiTransfer, actualValue);
+                  const diff =
+                    record.aiTransfer === null || actualValue === null
+                      ? null
+                      : actualValue - record.aiTransfer;
                   const commentRequired = matchScore !== null && matchScore < 80;
                   const missingRequiredComment =
                     commentRequired && !itemFeedback.comment.trim();
 
                   return (
-                    <tr key={route.route} className="border-t border-[#e8edf4]">
+                    <tr key={record.id} className="border-t border-[#e8edf4]">
                       <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">
-                        {route.source}
+                        {record.source}
                       </td>
                       <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">
-                        {route.destination}
+                        {record.destination}
                       </td>
-                      <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">
-                        {formatNumber(transfer.aiValue)}
+                      <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">
+                        {record.productGroup}
                       </td>
                       <td className="border-r border-[#e8edf4] px-4 py-3">
-                        <input
-                          className="ml-auto h-9 w-32 rounded-md bg-white px-3 text-right font-mono outline-none ring-1 ring-[#dfe6ef] focus:ring-[#ef4b98]"
-                          value={itemFeedback.actual}
-                          onChange={(event) =>
-                            updateFeedback(transfer.id, { actual: event.target.value })
-                          }
-                        />
+                        <p className="font-medium">{record.productType}</p>
+                        {record.actualProductTypes.length > 0 ? (
+                          <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                            Actual: {record.actualProductTypes.join(", ")}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">
+                        {formatNumber(record.aiTransfer)}
+                      </td>
+                      <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">
+                        {formatNumber(actualValue)}
                       </td>
                       <td
                         className={`border-r border-[#e8edf4] px-4 py-3 text-right font-mono ${
@@ -1686,13 +1972,13 @@ function TransferComparison({
                         </span>
                       </td>
                       <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
-                        {formatNumber(route.fourWheel?.aiValue ?? null)}
+                        {formatNumber(record.fourWheel)}
                       </td>
                       <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
-                        {formatNumber(route.sixWheel?.aiValue ?? null)}
+                        {formatNumber(record.sixWheel)}
                       </td>
                       <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
-                        {formatNumber(route.tenWheel?.aiValue ?? null)}
+                        {formatNumber(record.tenWheel)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="relative">
@@ -1709,7 +1995,7 @@ function TransferComparison({
                             }
                             value={itemFeedback.comment}
                             onChange={(event) =>
-                              updateFeedback(transfer.id, {
+                              updateFeedback(feedbackId, {
                                 comment: event.target.value,
                               })
                             }
@@ -1730,6 +2016,70 @@ function TransferComparison({
         </div>
       </div>
     </section>
+  );
+}
+
+function TransferFilterBox({
+  label,
+  options,
+  values,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filteredOptions = options.filter((option) =>
+    option.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
+  function toggle(option: string) {
+    onChange(
+      values.includes(option)
+        ? values.filter((value) => value !== option)
+        : [...values, option],
+    );
+  }
+
+  return (
+    <details className="relative rounded-md border border-[#dfe6ef] bg-white">
+      <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-medium marker:hidden">
+        <span className="min-w-0 truncate">
+          {label}:{" "}
+          {values.length === 0
+            ? "ทั้งหมด"
+            : values.length === 1
+              ? values[0]
+              : `${values.length} รายการ`}
+        </span>
+        <ChevronDown size={16} className="shrink-0 text-slate-400" />
+      </summary>
+      <div className="absolute left-0 top-12 z-30 w-full rounded-md border border-[#dfe6ef] bg-white p-3 shadow-lg">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-bold text-slate-600">{label}</p>
+          <button className="text-xs font-bold text-[#ef3e8f]" type="button" onClick={() => onChange([])}>
+            ทั้งหมด
+          </button>
+        </div>
+        <label className="relative mb-3 block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            className="h-10 w-full rounded-md border border-[#dfe6ef] pl-9 pr-3 text-sm outline-none focus:border-[#ef4b98]"
+            placeholder={`ค้นหา${label}...`}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <FilterGroup
+          options={filteredOptions}
+          values={values}
+          onToggle={toggle}
+          emptyText={`ไม่พบ${label}`}
+        />
+      </div>
+    </details>
   );
 }
 
