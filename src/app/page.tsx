@@ -105,9 +105,55 @@ const allSheets = "ทั้งหมด";
 const allFactories = "ทุกโรงเรือน";
 const storageKey = "ai-feedback-review-v1";
 const uploadedDataKey = "ai-feedback-uploaded-ai-data-v1";
+const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v1";
 const numberFormatter = new Intl.NumberFormat("th-TH", {
   maximumFractionDigits: 2,
 });
+
+const aiFallbackMetrics: Record<string, string[]> = {
+  "1. ปริมาณตัดแต่ง": ["จำนวนหมูเข้าตัดแต่ง (head)"],
+  "2. ปริมาณ Supply": [
+    "Production (kg)",
+    "Stock ยกมา (kg)",
+    "Transfer in (kg)",
+    "Transfer out (kg)",
+    "Net Transfer (kg)",
+    "Total Supply (kg)",
+    "Forecast (kg)",
+    "% ตอบกลับ Forecast",
+    "ของขาด-เหลือ (kg)",
+    "Quota (kg)",
+  ],
+  "3. FC,QT": ["FC (kg)", "QT (kg)", "% ตอบกลับ Forecast", "ขาด", "เกิน"],
+  "4. โอน": ["ปริมาณแนะนำโอน (kg)", "ปริมาณโอนทั้งหมด (kg)", "เหลือ (kg)"],
+  "5. การใช้รถ": [
+    "ปริมาณแนะนำโอน (kg)",
+    "ปริมาณโอนทั้งหมด (kg)",
+    "เหลือ (kg)",
+    "จำนวนรถ_4Wheels",
+    "จำนวนรถ_6Wheels",
+    "จำนวนรถ_10Wheels",
+  ],
+};
+
+const actualMetricAliases: Record<string, string[]> = {
+  "จำนวนหมูเข้าตัดแต่ง (head)": ["จำนวนหมูเข้าตัดแต่ง (head)"],
+  "Production (kg)": ["ProductionWeight"],
+  "Stock ยกมา (kg)": ["StockWeight"],
+  "Transfer in (kg)": ["Received"],
+  "Transfer out (kg)": ["Delivered"],
+  "Total Supply (kg)": ["Total_Supply"],
+  "Forecast (kg)": ["Forecast"],
+  "FC (kg)": ["Forecast"],
+  "Quota (kg)": ["Quota"],
+  "QT (kg)": ["Quota"],
+  "% ตอบกลับ Forecast": ["Quota_per_Forecast"],
+  "ของขาด-เหลือ (kg)": ["Shortage_Surplus", "Sum Shortage"],
+  "ขาด": ["Shortage_Surplus"],
+  "เกิน": ["Shortage_Surplus"],
+  "ปริมาณโอนทั้งหมด (kg)": ["Weight"],
+  "ปริมาณแนะนำโอน (kg)": ["Weight"],
+};
 
 const navItems = [
   { label: "Dashboard", icon: HomeIcon, tab: "feedback" },
@@ -161,7 +207,57 @@ function isYellow(cell: CellLike) {
 }
 
 function headerIndex(headers: string[], name: string) {
-  return headers.findIndex((header) => header === name) + 1;
+  const normalizedName = name.toLowerCase();
+  return (
+    headers.findIndex((header) => header.trim().toLowerCase() === normalizedName) + 1
+  );
+}
+
+function firstHeaderIndex(headers: string[], names: string[]) {
+  for (const name of names) {
+    const index = headerIndex(headers, name);
+    if (index > 0) return index;
+  }
+
+  return 0;
+}
+
+function sheetFamily(sheetName: string) {
+  if (sheetName.includes("ปริมาณตัดแต่ง")) return "1. ปริมาณตัดแต่ง";
+  if (sheetName.includes("ปริมาณ Supply")) return "2. ปริมาณ Supply";
+  if (sheetName.includes("FC") || sheetName.includes("ActualQuota")) return "3. FC,QT";
+  if (sheetName.includes("โอน")) return "4. โอน";
+  if (sheetName.includes("การใช้รถ")) return "5. การใช้รถ";
+  return sheetName;
+}
+
+function factoryFromRow(row: RowLike, headers: string[]) {
+  const factoryCol = firstHeaderIndex(headers, [
+    "WarehouseForPlan1",
+    "WarehouseForplan1",
+    "SourceWarehouseForPlan1",
+    "SourceWarehouseName",
+  ]);
+  const destinationCol = firstHeaderIndex(headers, [
+    "DestinationWarehouseForPlan1",
+    "DestinationWarehouseName",
+  ]);
+
+  if (factoryCol && destinationCol) {
+    const source = cellText(row.getCell(factoryCol).value).trim() || "ไม่ระบุ";
+    const destination = cellText(row.getCell(destinationCol).value).trim() || "ไม่ระบุ";
+    return `${source} -> ${destination}`;
+  }
+
+  if (factoryCol) {
+    return cellText(row.getCell(factoryCol).value).trim() || "ไม่ระบุโรงงาน";
+  }
+
+  if (destinationCol) {
+    return cellText(row.getCell(destinationCol).value).trim() || "ไม่ระบุโรงงาน";
+  }
+
+  return "ไม่ระบุโรงงาน";
 }
 
 function score(record: AiRecord, actual: string) {
@@ -220,44 +316,42 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
       if (header && isYellow(cell)) yellowColumns.push(colNumber);
     });
 
-    if (yellowColumns.length === 0) continue;
+    const family = sheetFamily(worksheet.name);
+    const fallbackMetrics = aiFallbackMetrics[family] ?? [];
+    const metricColumns =
+      yellowColumns.length > 0
+        ? yellowColumns.map((column) => ({
+            column,
+            metric: headers[column - 1],
+          }))
+        : fallbackMetrics
+            .map((metric) => ({
+              column: headerIndex(headers, metric),
+              metric,
+            }))
+            .filter((item) => item.column > 0);
 
-    const factoryCol = headerIndex(headers, "WarehouseForPlan1");
-    const sourceFactoryCol = headerIndex(headers, "SourceWarehouseForPlan1");
-    const destinationFactoryCol = headerIndex(headers, "DestinationWarehouseForPlan1");
+    if (metricColumns.length === 0) continue;
+
     const weekCol = headerIndex(headers, "weekNo");
     const map = new Map<string, Aggregate>();
 
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (rowNumber === 1) return;
 
-      let factory = "ไม่ระบุโรงงาน";
-      if (factoryCol) {
-        factory = cellText(row.getCell(factoryCol).value).trim() || factory;
-      } else if (sourceFactoryCol && destinationFactoryCol) {
-        const source = cellText(row.getCell(sourceFactoryCol).value).trim() || "ไม่ระบุ";
-        const destination =
-          cellText(row.getCell(destinationFactoryCol).value).trim() || "ไม่ระบุ";
-        factory = `${source} -> ${destination}`;
-      } else if (sourceFactoryCol) {
-        factory = cellText(row.getCell(sourceFactoryCol).value).trim() || factory;
-      } else if (destinationFactoryCol) {
-        factory = cellText(row.getCell(destinationFactoryCol).value).trim() || factory;
-      }
-
+      const factory = factoryFromRow(row, headers);
       const week = weekCol ? cellText(row.getCell(weekCol).value).trim() : "";
 
-      for (const colNumber of yellowColumns) {
-        const metric = headers[colNumber - 1];
-        const cell = row.getCell(colNumber);
+      for (const { column, metric } of metricColumns) {
+        const cell = row.getCell(column);
         const textValue = cellText(cell.value).trim();
         const value = numericValue(cell.value);
         if (!textValue && value === null) continue;
 
-        const key = `${worksheet.name}|${factory}|${metric}`;
+        const key = `${family}|${factory}|${metric}`;
         if (!map.has(key)) {
           map.set(key, {
-            sheet: worksheet.name,
+            sheet: family,
             factory,
             metric,
             rows: 0,
@@ -326,6 +420,71 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
   };
 }
 
+async function parseActualWorkbook(
+  file: File,
+  aiRecords: AiRecord[],
+): Promise<Record<string, Feedback>> {
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook() as unknown as WorkbookLike;
+  await workbook.xlsx.load(await file.arrayBuffer());
+  const values = new Map<string, number>();
+
+  for (const worksheet of workbook.worksheets) {
+    const headers: string[] = [];
+
+    worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      headers[colNumber - 1] = cellText(cell.value).trim();
+    });
+
+    const family = sheetFamily(worksheet.name);
+    const relevantMetrics = Array.from(
+      new Set(
+        aiRecords
+          .filter((record) => record.sheet === family)
+          .map((record) => record.metric),
+      ),
+    );
+
+    const metricColumns = relevantMetrics
+      .map((metric) => ({
+        metric,
+        column: firstHeaderIndex(headers, actualMetricAliases[metric] ?? [metric]),
+      }))
+      .filter((item) => item.column > 0);
+
+    if (metricColumns.length === 0) continue;
+
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const factory = factoryFromRow(row, headers);
+
+      for (const { metric, column } of metricColumns) {
+        const value = numericValue(row.getCell(column).value);
+        if (value === null) continue;
+
+        const key = `${family}|${factory}|${metric}`;
+        values.set(key, (values.get(key) ?? 0) + value);
+      }
+    });
+  }
+
+  const actualFeedback: Record<string, Feedback> = {};
+
+  for (const record of aiRecords) {
+    const value = values.get(`${record.sheet}|${record.factory}|${record.metric}`);
+    if (value !== undefined) {
+      actualFeedback[record.id] = {
+        actual: String(Number(value.toFixed(4))),
+        accuracy: "",
+        comment: "",
+      };
+    }
+  }
+
+  return actualFeedback;
+}
+
 export default function Home() {
   const [data, setData] = useState<AiData | null>(null);
   const [sheet, setSheet] = useState(allSheets);
@@ -333,6 +492,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<AppTab>("feedback");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadedNames, setUploadedNames] = useState<{ ai?: string; actual?: string }>({});
   const [uploadStatus, setUploadStatus] = useState<{
     tone: "success" | "error";
     message: string;
@@ -350,6 +510,16 @@ export default function Home() {
         const uploaded = window.localStorage.getItem(uploadedDataKey);
         setData(uploaded ? JSON.parse(uploaded) : defaultData);
       });
+
+    fetch("/actual-feedback-data.json")
+      .then((response) => (response.ok ? response.json() : {}))
+      .then((sampleActual: Record<string, Feedback>) => {
+        setFeedback((current) => {
+          const merged = { ...sampleActual, ...current };
+          return merged;
+        });
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -416,6 +586,7 @@ export default function Home() {
     try {
       const uploadedData = await parseAiWorkbook(file);
       setData(uploadedData);
+      setUploadedNames((current) => ({ ...current, ai: file.name }));
       setSheet(allSheets);
       setFactory(allFactories);
       setQuery("");
@@ -430,6 +601,52 @@ export default function Home() {
       setUploadStatus({
         tone: "error",
         message: error instanceof Error ? error.message : "ไม่สามารถอ่านไฟล์นี้ได้",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  async function handleActualUpload(file: File) {
+    if (!data?.records.length) {
+      setUploadStatus({
+        tone: "error",
+        message: "กรุณาอัปโหลดไฟล์ผล AI ก่อน แล้วจึงอัปโหลดไฟล์ Actual",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadStatus(null);
+
+    try {
+      const actualFeedback = await parseActualWorkbook(file, data.records);
+      setFeedback((current) => {
+        const merged = { ...current };
+
+        for (const [id, actual] of Object.entries(actualFeedback)) {
+          merged[id] = {
+            ...({ actual: "", accuracy: "", comment: "" } satisfies Feedback),
+            ...current[id],
+            actual: actual.actual,
+          };
+        }
+
+        return merged;
+      });
+      window.localStorage.setItem(uploadedActualKey, JSON.stringify(actualFeedback));
+      setUploadedNames((current) => ({ ...current, actual: file.name }));
+      setUploadStatus({
+        tone: "success",
+        message: `เติมค่าจริงสำเร็จ: จับคู่ได้ ${Object.keys(actualFeedback).length.toLocaleString(
+          "th-TH",
+        )} รายการ`,
+      });
+      setActiveTab("feedback");
+    } catch (error) {
+      setUploadStatus({
+        tone: "error",
+        message: error instanceof Error ? error.message : "ไม่สามารถอ่านไฟล์ Actual ได้",
       });
     } finally {
       setIsUploading(false);
@@ -499,7 +716,9 @@ export default function Home() {
                 data={data}
                 isUploading={isUploading}
                 status={uploadStatus}
+                uploadedNames={uploadedNames}
                 onUpload={handleAiUpload}
+                onActualUpload={handleActualUpload}
               />
             ) : (
               <>
@@ -950,12 +1169,16 @@ function UploadAiPanel({
   data,
   isUploading,
   status,
+  uploadedNames,
   onUpload,
+  onActualUpload,
 }: {
   data: AiData | null;
   isUploading: boolean;
   status: { tone: "success" | "error"; message: string } | null;
+  uploadedNames: { ai?: string; actual?: string };
   onUpload: (file: File) => Promise<void>;
+  onActualUpload: (file: File) => Promise<void>;
 }) {
   const sheets = Array.from(new Set(data?.records.map((record) => record.sheet) ?? []));
   const factories = Array.from(new Set(data?.records.map((record) => record.factory) ?? []));
@@ -963,49 +1186,50 @@ function UploadAiPanel({
 
   return (
     <section className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-      <Panel title="นำเข้าไฟล์ผล AI">
-        <div className="rounded-lg border border-dashed border-[#ff9ac3] bg-[#fff7fb] p-8 text-center">
-          <div className="mx-auto grid size-16 place-items-center rounded-full bg-white text-[#ef3e8f] shadow-sm">
-            <Upload size={30} />
-          </div>
-          <h3 className="mt-5 text-2xl font-bold">อัปโหลดไฟล์ Excel ผล AI</h3>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-            รองรับไฟล์ .xlsx ที่มีชีตและหัวคอลัมน์เหมือนชุดเดิม ระบบจะอ่านหัวคอลัมน์ที่ไฮไลต์สีเหลือง
-            แล้วสรุปข้อมูลแยกตามโรงงานให้ใช้ในหน้า Feedback ทันที
-          </p>
-          <label className="mx-auto mt-6 flex h-12 w-full max-w-sm cursor-pointer items-center justify-center gap-2 rounded-md bg-[#ef3e8f] px-5 text-sm font-bold text-white shadow-sm hover:bg-[#dc2e81]">
-            <Upload size={18} />
-            {isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์ผล AI"}
-            <input
-              type="file"
-              accept=".xlsx,.xlsm"
-              className="sr-only"
-              disabled={isUploading}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void onUpload(file);
-                event.currentTarget.value = "";
-              }}
-            />
-          </label>
-
-          {status && (
-            <div
-              className={`mx-auto mt-5 flex max-w-2xl items-center gap-3 rounded-md border p-4 text-left text-sm ${
-                status.tone === "success"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border-rose-200 bg-rose-50 text-rose-800"
-              }`}
-            >
-              {status.tone === "success" ? (
-                <CheckCircle2 className="shrink-0" size={20} />
-              ) : (
-                <AlertCircle className="shrink-0" size={20} />
-              )}
-              {status.message}
-            </div>
-          )}
+      <Panel title="นำเข้าไฟล์เพื่อเปรียบเทียบ">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <UploadBox
+            title="1. ไฟล์ผลลัพธ์ AI"
+            description="ไฟล์ sigmas หรือไฟล์ผล AI ที่มีชีตและหัวคอลัมน์ตามโครงเดิม ระบบจะอ่านค่าที่ต้องนำมาเทียบ"
+            buttonLabel={isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์ผล AI"}
+            fileName={uploadedNames.ai ?? data?.sourceFile}
+            disabled={isUploading}
+            onUpload={onUpload}
+          />
+          <UploadBox
+            title="2. ไฟล์ค่าจริง Actual"
+            description="ไฟล์ Actual.xlsx ระบบจะจับคู่กับผล AI แล้วเติมค่า Actual ลงในตารางเปรียบเทียบให้อัตโนมัติ"
+            buttonLabel={isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์ Actual"}
+            fileName={uploadedNames.actual}
+            disabled={isUploading || !data?.records.length}
+            onUpload={onActualUpload}
+          />
         </div>
+
+        <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
+          <p className="font-bold">ลำดับการใช้งาน</p>
+          <p className="mt-1">
+            อัปโหลดไฟล์ผล AI ก่อน จากนั้นอัปโหลดไฟล์ Actual ระบบจะใช้ชื่อชีต โรงงาน และ mapping
+            ของคอลัมน์ เช่น Production (kg) ↔ ProductionWeight, Quota (kg) ↔ Quota เพื่อเติมค่าจริง
+          </p>
+        </div>
+
+        {status && (
+          <div
+            className={`mt-5 flex items-center gap-3 rounded-md border p-4 text-left text-sm ${
+              status.tone === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-rose-200 bg-rose-50 text-rose-800"
+            }`}
+          >
+            {status.tone === "success" ? (
+              <CheckCircle2 className="shrink-0" size={20} />
+            ) : (
+              <AlertCircle className="shrink-0" size={20} />
+            )}
+            {status.message}
+          </div>
+        )}
       </Panel>
 
       <div className="space-y-5">
@@ -1033,6 +1257,56 @@ function UploadAiPanel({
         </Panel>
       </div>
     </section>
+  );
+}
+
+function UploadBox({
+  title,
+  description,
+  buttonLabel,
+  fileName,
+  disabled,
+  onUpload,
+}: {
+  title: string;
+  description: string;
+  buttonLabel: string;
+  fileName?: string;
+  disabled: boolean;
+  onUpload: (file: File) => Promise<void>;
+}) {
+  return (
+    <div className="rounded-lg border border-dashed border-[#ff9ac3] bg-[#fff7fb] p-6 text-center">
+      <div className="mx-auto grid size-14 place-items-center rounded-full bg-white text-[#ef3e8f] shadow-sm">
+        <Upload size={26} />
+      </div>
+      <h3 className="mt-4 text-xl font-bold">{title}</h3>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">{description}</p>
+      <label
+        className={`mx-auto mt-5 flex h-11 w-full max-w-xs items-center justify-center gap-2 rounded-md px-5 text-sm font-bold shadow-sm ${
+          disabled
+            ? "cursor-not-allowed bg-slate-200 text-slate-500"
+            : "cursor-pointer bg-[#ef3e8f] text-white hover:bg-[#dc2e81]"
+        }`}
+      >
+        <Upload size={18} />
+        {buttonLabel}
+        <input
+          type="file"
+          accept=".xlsx,.xlsm"
+          className="sr-only"
+          disabled={disabled}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void onUpload(file);
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
+      <p className="mt-3 min-h-5 truncate text-xs font-medium text-slate-500">
+        {fileName ? `ไฟล์: ${fileName}` : "ยังไม่ได้เลือกไฟล์"}
+      </p>
+    </div>
   );
 }
 
