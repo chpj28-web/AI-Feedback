@@ -1144,7 +1144,6 @@ function ComparisonCard({
                         </div>
                         <div className="min-w-0">
                           <p className="truncate font-semibold">{record.metric}</p>
-                          <p className="truncate text-xs text-slate-500">{record.factory}</p>
                         </div>
                       </div>
                     </td>
