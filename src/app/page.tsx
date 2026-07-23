@@ -566,7 +566,7 @@ export default function Home() {
     });
   }, [factory, query, records, sheet]);
 
-  const tableRows = filtered.slice(0, 8);
+  const tableRows = filtered;
   const scores = tableRows
     .map((record) => score(record, feedback[record.id]?.actual ?? ""))
     .filter((value): value is number => value !== null);
@@ -905,6 +905,9 @@ function ComparisonCard({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
+          <span className="rounded-md bg-[#ffe8f1] px-3 py-1 font-bold text-[#ef3e8f]">
+            แสดง {rows.length.toLocaleString("th-TH")} รายการ
+          </span>
           <Legend color="bg-emerald-500" label="ดี" />
           <Legend color="bg-orange-500" label="ควรปรับปรุง" />
           <Legend color="bg-red-500" label="ต่างกันมาก" />
@@ -922,7 +925,7 @@ function ComparisonCard({
       </label>
 
       <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
-        <div className="overflow-x-auto">
+        <div className="max-h-[640px] overflow-auto">
           <table className="w-full min-w-[1080px] border-collapse text-sm">
             <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
               <tr>
