@@ -20,6 +20,51 @@ body {
   line-height: 1.65;
 }
 
+.app-background {
+  position: relative;
+  background:
+    linear-gradient(rgba(255, 250, 253, 0.88), rgba(255, 250, 253, 0.92)),
+    url("/background.png") center / cover fixed no-repeat;
+}
+
+.app-background::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.34);
+  backdrop-filter: saturate(0.88) brightness(1.07);
+}
+
+.app-background :is(.bg-white, .bg-white\/90, .bg-white\/95) {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+.app-background .border-\[\#e3e8f0\],
+.app-background .border-\[\#dfe6ef\],
+.app-background .border-\[\#edf1f6\],
+.app-background .border-\[\#e8edf4\],
+.app-background .border-\[\#e2e8f0\],
+.app-background .border-\[\#e1e7ef\] {
+  border-color: rgba(239, 62, 143, 0.26);
+}
+
+@media (max-width: 768px) {
+  .app-background {
+    background:
+      linear-gradient(rgba(255, 250, 253, 0.93), rgba(255, 250, 253, 0.96)),
+      url("/background.png") left bottom / auto 100% fixed no-repeat;
+  }
+
+  table {
+    font-size: 15px;
+  }
+
+  .text-sm {
+    font-size: 0.9rem;
+  }
+}
+
 button,
 input,
 select,

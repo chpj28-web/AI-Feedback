@@ -956,19 +956,19 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f8fb] text-[#172033]">
-      <div className="grid min-h-screen lg:grid-cols-[260px_1fr]">
+    <main className="app-background min-h-screen text-[#172033]">
+      <div className="relative z-10 grid min-h-screen lg:grid-cols-[260px_1fr]">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <section className="min-w-0">
-          <header className="sticky top-0 z-20 border-b border-[#e2e8f0] bg-white/95 backdrop-blur">
-            <div className="flex min-h-24 items-center justify-between gap-4 px-5 py-4 sm:px-8">
-              <div className="flex items-center gap-5">
+          <header className="sticky top-0 z-20 border-b border-[#f5b4cf] bg-white/90 backdrop-blur">
+            <div className="flex min-h-24 flex-col items-start justify-between gap-4 px-4 py-4 sm:px-8 xl:flex-row xl:items-center">
+              <div className="flex w-full items-center gap-4 xl:w-auto xl:gap-5">
                 <button className="grid size-11 place-items-center rounded-md text-slate-600 hover:bg-slate-100">
                   <Menu size={28} />
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold">
+                  <h1 className="text-xl font-bold leading-snug sm:text-2xl">
                     {activeTab === "upload"
                       ? "อัปโหลดผล AI"
                       : activeTab === "transfer"
@@ -1008,10 +1008,11 @@ export default function Home() {
                   วิธีใช้งาน
                 </TopButton>
               </div>
+              <MobileTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
           </header>
 
-          <div className="space-y-5 px-5 py-5 sm:px-8">
+          <div className="space-y-5 px-4 py-5 sm:px-8">
             {activeTab === "upload" ? (
               <UploadAiPanel
                 data={data}
@@ -1141,6 +1142,44 @@ function Sidebar({
         </button>
       </div>
     </aside>
+  );
+}
+
+function MobileTabBar({
+  activeTab,
+  setActiveTab,
+}: {
+  activeTab: AppTab;
+  setActiveTab: (tab: AppTab) => void;
+}) {
+  const tabs = navItems.filter((item): item is typeof item & { tab: AppTab } => "tab" in item);
+
+  return (
+    <div className="flex w-full gap-2 overflow-x-auto pb-1 lg:hidden">
+      {tabs.map((item) => {
+        const Icon = item.icon;
+        const active =
+          activeTab === "feedback"
+            ? item.label === "บันทึก Feedback"
+            : item.tab === activeTab;
+
+        return (
+          <button
+            key={item.label}
+            className={`flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-bold ${
+              active
+                ? "border-[#ef3e8f] bg-[#ffe8f1] text-[#ef3e8f]"
+                : "border-[#f5b4cf] bg-white/90 text-slate-600"
+            }`}
+            type="button"
+            onClick={() => setActiveTab(item.tab)}
+          >
+            <Icon size={17} />
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
