@@ -499,6 +499,8 @@ export default function Home() {
   const [sheet, setSheet] = useState(allSheets);
   const [factory, setFactory] = useState("");
   const [query, setQuery] = useState("");
+  const [metricFilter, setMetricFilter] = useState("ทุกตัวแปร");
+  const [statusFilter, setStatusFilter] = useState("ทุกสถานะ");
   const [activeTab, setActiveTab] = useState<AppTab>("feedback");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedNames, setUploadedNames] = useState<{ ai?: string; actual?: string }>({});
@@ -547,6 +549,15 @@ export default function Home() {
       ),
     [records],
   );
+  const metrics = useMemo(
+    () => [
+      "ทุกตัวแปร",
+      ...Array.from(new Set(records.map((record) => record.metric))).sort((a, b) =>
+        a.localeCompare(b, "th"),
+      ),
+    ],
+    [records],
+  );
 
   const selectedFactory =
     factory && factories.includes(factory) ? factory : (factories[0] ?? "");
@@ -556,15 +567,20 @@ export default function Home() {
     return records.filter((record) => {
       const matchesSheet = sheet === allSheets || record.sheet === sheet;
       const matchesFactory = !selectedFactory || record.factory === selectedFactory;
+      const matchesMetric =
+        metricFilter === "ทุกตัวแปร" || record.metric === metricFilter;
+      const recordStatus = scoreLabel(score(record, feedback[record.id]?.actual ?? ""));
+      const matchesStatus =
+        statusFilter === "ทุกสถานะ" || recordStatus === statusFilter;
       const matchesQuery =
         !normalizedQuery ||
         `${record.metric} ${record.factory} ${record.sheet}`
           .toLowerCase()
           .includes(normalizedQuery);
 
-      return matchesSheet && matchesFactory && matchesQuery;
+      return matchesSheet && matchesFactory && matchesMetric && matchesStatus && matchesQuery;
     });
-  }, [query, records, selectedFactory, sheet]);
+  }, [feedback, metricFilter, query, records, selectedFactory, sheet, statusFilter]);
 
   const tableRows = filtered;
   const scores = tableRows
@@ -718,6 +734,26 @@ export default function Home() {
                     <option key={option}>{option}</option>
                   ))}
                 </select>
+                <select
+                  className="h-11 min-w-56 rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-medium shadow-sm"
+                  value={metricFilter}
+                  onChange={(event) => setMetricFilter(event.target.value)}
+                >
+                  {metrics.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+                <select
+                  className="h-11 min-w-40 rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-medium shadow-sm"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                >
+                  {["ทุกสถานะ", "ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"].map(
+                    (option) => (
+                      <option key={option}>{option}</option>
+                    ),
+                  )}
+                </select>
                 <TopButton>
                   <HelpCircle size={17} />
                   วิธีใช้งาน
@@ -747,6 +783,11 @@ export default function Home() {
                   <ComparisonCard
                     query={query}
                     setQuery={setQuery}
+                    metricFilter={metricFilter}
+                    setMetricFilter={setMetricFilter}
+                    metrics={metrics}
+                    statusFilter={statusFilter}
+                    setStatusFilter={setStatusFilter}
                     rows={tableRows}
                     feedback={feedback}
                     updateFeedback={updateFeedback}
@@ -883,12 +924,22 @@ function InfoTile({
 function ComparisonCard({
   query,
   setQuery,
+  metricFilter,
+  setMetricFilter,
+  metrics,
+  statusFilter,
+  setStatusFilter,
   rows,
   feedback,
   updateFeedback,
 }: {
   query: string;
   setQuery: (query: string) => void;
+  metricFilter: string;
+  setMetricFilter: (metric: string) => void;
+  metrics: string[];
+  statusFilter: string;
+  setStatusFilter: (status: string) => void;
   rows: AiRecord[];
   feedback: Record<string, Feedback>;
   updateFeedback: (id: string, patch: Partial<Feedback>) => void;
@@ -915,15 +966,35 @@ function ComparisonCard({
         </div>
       </div>
 
-      <label className="relative mb-4 block max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-        <input
-          className="h-11 w-full rounded-md border border-[#dfe6ef] pl-10 pr-3 text-sm outline-none focus:border-[#ef4b98]"
-          placeholder="ค้นหาตัวชี้วัด"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
+      <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_260px_180px]">
+        <label className="relative block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input
+            className="h-11 w-full rounded-md border border-[#dfe6ef] pl-10 pr-3 text-sm outline-none focus:border-[#ef4b98]"
+            placeholder="ค้นหาตัวชี้วัด"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+        <select
+          className="h-11 rounded-md border border-[#dfe6ef] bg-white px-3 text-sm font-medium outline-none focus:border-[#ef4b98]"
+          value={metricFilter}
+          onChange={(event) => setMetricFilter(event.target.value)}
+        >
+          {metrics.map((option) => (
+            <option key={option}>{option}</option>
+          ))}
+        </select>
+        <select
+          className="h-11 rounded-md border border-[#dfe6ef] bg-white px-3 text-sm font-medium outline-none focus:border-[#ef4b98]"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
+          {["ทุกสถานะ", "ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"].map((option) => (
+            <option key={option}>{option}</option>
+          ))}
+        </select>
+      </div>
 
       <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
         <div className="max-h-[640px] overflow-auto">
