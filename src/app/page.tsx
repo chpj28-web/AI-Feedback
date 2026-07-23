@@ -595,7 +595,7 @@ export default function Home() {
   }, [feedbackRecords, selectedFactory]);
   const selectedWeek = week && weekOptions.includes(week) ? week : "";
 
-  const filtered = useMemo(() => {
+  const summaryRows = useMemo(() => {
     return feedbackRecords.filter((record) => {
       const matchesSheet = sheet === allSheets || record.sheet === sheet;
       const matchesFactory = !selectedFactory || record.factory === selectedFactory;
@@ -603,25 +603,27 @@ export default function Home() {
         metricFilters.length === 0 || metricFilters.includes(record.metric);
       const matchesWeek =
         !selectedWeek || record.weeks.includes(selectedWeek);
-      const recordStatus = scoreLabel(score(record, feedback[record.id]?.actual ?? ""));
-      const matchesStatus =
-        statusFilters.length === 0 || statusFilters.includes(recordStatus);
 
-      return matchesSheet && matchesFactory && matchesWeek && matchesMetric && matchesStatus;
+      return matchesSheet && matchesFactory && matchesWeek && matchesMetric;
     });
-  }, [feedback, feedbackRecords, metricFilters, selectedFactory, selectedWeek, sheet, statusFilters]);
+  }, [feedbackRecords, metricFilters, selectedFactory, selectedWeek, sheet]);
+
+  const filtered = useMemo(() => {
+    return summaryRows.filter((record) => {
+      const recordStatus = scoreLabel(score(record, feedback[record.id]?.actual ?? ""));
+      return statusFilters.length === 0 || statusFilters.includes(recordStatus);
+    });
+  }, [feedback, statusFilters, summaryRows]);
 
   const tableRows = filtered;
-  const scores = tableRows
+  const scores = summaryRows
     .map((record) => score(record, feedback[record.id]?.actual ?? ""))
     .filter((value): value is number => value !== null);
-  const averageScore =
-    scores.length > 0
-      ? Math.round(scores.reduce((total, value) => total + value, 0) / scores.length)
-      : null;
   const goodCount = scores.filter((value) => value >= 80).length;
   const warningCount = scores.filter((value) => value >= 60 && value < 80).length;
   const badCount = scores.filter((value) => value < 60).length;
+  const closePercent =
+    scores.length > 0 ? Math.round((goodCount / scores.length) * 100) : null;
 
   function updateFeedback(id: string, patch: Partial<Feedback>) {
     setFeedback((current) => ({
@@ -807,7 +809,8 @@ export default function Home() {
                     updateFeedback={updateFeedback}
                   />
                   <SummaryCard
-                    score={averageScore}
+                    closePercent={closePercent}
+                    analyzedCount={scores.length}
                     goodCount={goodCount}
                     warningCount={warningCount}
                     badCount={badCount}
@@ -1387,36 +1390,59 @@ function FilterGroup({
 }
 
 function SummaryCard({
-  score: averageScore,
+  closePercent,
+  analyzedCount,
   goodCount,
   warningCount,
   badCount,
 }: {
-  score: number | null;
+  closePercent: number | null;
+  analyzedCount: number;
   goodCount: number;
   warningCount: number;
   badCount: number;
 }) {
+  const percent = closePercent ?? 0;
+  const range =
+    closePercent === null
+      ? { color: "#94a3b8", soft: "#f1f5f9", label: "รอข้อมูล" }
+      : closePercent >= 80
+        ? { color: "#39b87f", soft: "#ecfdf5", label: "ดี" }
+        : closePercent >= 60
+          ? { color: "#f59e0b", soft: "#fff7ed", label: "ควรปรับปรุง" }
+          : { color: "#e11d48", soft: "#fff1f2", label: "ต่างกันมาก" };
+
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
         <h3 className="text-lg font-bold">สรุปภาพรวมรอบการผลิตนี้</h3>
         <div className="mt-6 flex justify-center">
-          <div className="relative grid size-40 place-items-center rounded-full bg-[conic-gradient(#39b87f_0_72%,#e8edf4_72%_100%)]">
+          <div
+            className="relative grid size-40 place-items-center rounded-full"
+            style={{
+              background: `conic-gradient(${range.color} 0 ${percent}%, #e8edf4 ${percent}% 100%)`,
+            }}
+          >
             <div className="grid size-28 place-items-center rounded-full bg-white shadow-inner">
               <div className="text-center">
-                <p className="text-3xl font-bold">
-                  {averageScore === null ? "0.88" : `0.${averageScore}`}
+                <p className="text-3xl font-bold">{closePercent === null ? "-" : `${closePercent}%`}</p>
+                <p className="text-sm font-bold" style={{ color: range.color }}>
+                  {range.label}
                 </p>
-                <p className="text-sm font-bold text-emerald-600">ดี</p>
               </div>
             </div>
           </div>
         </div>
+        <div
+          className="mt-4 rounded-md border px-3 py-2 text-center text-sm font-bold"
+          style={{ borderColor: range.color, backgroundColor: range.soft, color: range.color }}
+        >
+          ใกล้เคียง {goodCount.toLocaleString("th-TH")} / {analyzedCount.toLocaleString("th-TH")} ตัวชี้วัด
+        </div>
         <div className="mt-6 space-y-3">
-          <SummaryPill tone="good" label="ดี (ต่างกันน้อย)" value={`${goodCount || 5} ตัวชี้วัด`} />
-          <SummaryPill tone="warn" label="ควรปรับปรุง" value={`${warningCount || 1} ตัวชี้วัด`} />
-          <SummaryPill tone="bad" label="ต่างกันมาก" value={`${badCount || 2} ตัวชี้วัด`} />
+          <SummaryPill tone="good" label="ดี (ต่างกันน้อย)" value={`${goodCount.toLocaleString("th-TH")} ตัวชี้วัด`} />
+          <SummaryPill tone="warn" label="ควรปรับปรุง" value={`${warningCount.toLocaleString("th-TH")} ตัวชี้วัด`} />
+          <SummaryPill tone="bad" label="ต่างกันมาก" value={`${badCount.toLocaleString("th-TH")} ตัวชี้วัด`} />
         </div>
       </div>
 
