@@ -1016,21 +1016,13 @@ function ComparisonCard({
         </div>
       </div>
 
-      <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_220px]">
-        <SearchableMultiSelectBox
-          label="ตัวแปร / ตัวชี้วัด"
-          emptyLabel="ทุกตัวแปร"
-          options={metrics}
+      <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
+        <MetricFilterBox
+          metrics={metrics}
           values={metricFilters}
           onChange={setMetricFilters}
         />
-        <SearchableMultiSelectBox
-          label="สถานะ"
-          emptyLabel="ทุกสถานะ"
-          options={["ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"]}
-          values={statusFilters}
-          onChange={setStatusFilters}
-        />
+        <StatusFilterBox values={statusFilters} onChange={setStatusFilters} />
       </div>
 
       <div className="overflow-hidden rounded-lg border border-[#dfe6ef]">
@@ -1164,25 +1156,21 @@ function Legend({ color, label }: { color: string; label: string }) {
   );
 }
 
-function SearchableMultiSelectBox({
-  label,
-  emptyLabel,
-  options,
+function MetricFilterBox({
+  metrics,
   values,
   onChange,
 }: {
-  label: string;
-  emptyLabel: string;
-  options: string[];
+  metrics: string[];
   values: string[];
   onChange: (values: string[]) => void;
 }) {
   const [search, setSearch] = useState("");
-  const filteredOptions = options.filter((option) =>
+  const filteredMetrics = metrics.filter((option) =>
     option.toLowerCase().includes(search.trim().toLowerCase()),
   );
 
-  function toggle(option: string) {
+  function toggleMetric(option: string) {
     onChange(
       values.includes(option)
         ? values.filter((value) => value !== option)
@@ -1194,19 +1182,24 @@ function SearchableMultiSelectBox({
     <details className="relative rounded-md border border-[#dfe6ef] bg-white">
       <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-medium marker:hidden">
         <span className="min-w-0 truncate">
-          {label}: {values.length === 0 ? emptyLabel : `${values.length} รายการ`}
+          ตัวแปร:{" "}
+          {values.length === 0
+            ? "ทั้งหมด"
+            : values.length === 1
+              ? values[0]
+              : `${values.length} รายการ`}
         </span>
         <ChevronDown size={16} className="shrink-0 text-slate-400" />
       </summary>
       <div className="absolute left-0 top-12 z-30 w-full rounded-md border border-[#dfe6ef] bg-white p-3 shadow-lg">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-xs font-bold text-slate-600">{label}</p>
+          <p className="text-xs font-bold text-slate-600">ตัวแปร</p>
           <button
             className="text-xs font-bold text-[#ef3e8f]"
             type="button"
             onClick={() => onChange([])}
           >
-            {emptyLabel}
+            ทั้งหมด
           </button>
         </div>
         <label className="relative mb-3 block">
@@ -1218,24 +1211,99 @@ function SearchableMultiSelectBox({
             onChange={(event) => setSearch(event.target.value)}
           />
         </label>
-        <div className="max-h-48 space-y-2 overflow-auto pr-1">
-        {filteredOptions.map((option) => (
+        <FilterGroup
+          options={filteredMetrics}
+          values={values}
+          onToggle={toggleMetric}
+          emptyText="ไม่พบตัวแปร"
+        />
+      </div>
+    </details>
+  );
+}
+
+function StatusFilterBox({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const statuses = ["ดี", "ควรปรับปรุง", "ต่างกันมาก", "รอข้อมูล"];
+
+  function toggleStatus(option: string) {
+    onChange(
+      values.includes(option)
+        ? values.filter((value) => value !== option)
+        : [...values, option],
+    );
+  }
+
+  return (
+    <details className="relative rounded-md border border-[#dfe6ef] bg-white">
+      <summary className="flex h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-sm font-medium marker:hidden">
+        <span className="min-w-0 truncate">
+          สถานะ:{" "}
+          {values.length === 0
+            ? "ทั้งหมด"
+            : values.length === 1
+              ? values[0]
+              : `${values.length} รายการ`}
+        </span>
+        <ChevronDown size={16} className="shrink-0 text-slate-400" />
+      </summary>
+      <div className="absolute right-0 top-12 z-30 w-full rounded-md border border-[#dfe6ef] bg-white p-3 shadow-lg">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-bold text-slate-600">สถานะ</p>
+          <button
+            className="text-xs font-bold text-[#ef3e8f]"
+            type="button"
+            onClick={() => onChange([])}
+          >
+            ทั้งหมด
+          </button>
+        </div>
+        <FilterGroup
+          options={statuses}
+          values={values}
+          onToggle={toggleStatus}
+          emptyText="ไม่พบสถานะ"
+        />
+      </div>
+    </details>
+  );
+}
+
+function FilterGroup({
+  options,
+  values,
+  onToggle,
+  emptyText,
+}: {
+  options: string[];
+  values: string[];
+  onToggle: (value: string) => void;
+  emptyText: string;
+}) {
+  return (
+    <div className="max-h-64 overflow-auto pr-1">
+      <div className="space-y-2">
+        {options.map((option) => (
           <label key={option} className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
               className="mt-1 size-4 accent-[#ef3e8f]"
               checked={values.includes(option)}
-              onChange={() => toggle(option)}
+              onChange={() => onToggle(option)}
             />
             <span className="leading-5">{option}</span>
           </label>
         ))}
-        {filteredOptions.length === 0 && (
-          <p className="py-3 text-center text-sm text-slate-500">ไม่พบตัวแปร</p>
+        {options.length === 0 && (
+          <p className="py-2 text-center text-sm text-slate-500">{emptyText}</p>
         )}
-        </div>
       </div>
-    </details>
+    </div>
   );
 }
 
