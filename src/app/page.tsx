@@ -1363,6 +1363,18 @@ function ComparisonCard({
   feedback: Record<string, Feedback>;
   updateFeedback: (id: string, patch: Partial<Feedback>) => void;
 }) {
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  function saveTableFeedback() {
+    window.localStorage.setItem(storageKey, JSON.stringify(feedback));
+    setSavedAt(
+      new Intl.DateTimeFormat("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date()),
+    );
+  }
+
   return (
     <div className="comparison-card min-w-0 rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1510,7 +1522,22 @@ function ComparisonCard({
           </table>
         </div>
       </div>
-      <p className="mt-3 text-xs text-slate-500">* % ต่างกัน = |ผลต่าง| / AI ทำนาย × 100</p>
+      <div className="mt-4 flex flex-col gap-3 border-t border-[#f5b4cf] pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-slate-500">* % ต่างกัน = |ผลต่าง| / AI ทำนาย × 100</p>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#ef3e8f] px-5 text-sm font-bold text-white shadow-sm hover:bg-[#dc2e81]"
+            type="button"
+            onClick={saveTableFeedback}
+          >
+            <Save size={18} />
+            บันทึกความเห็น
+          </button>
+          {savedAt ? (
+            <p className="text-xs font-bold text-emerald-600">บันทึกแล้ว {savedAt}</p>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
