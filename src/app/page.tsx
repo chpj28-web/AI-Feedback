@@ -58,6 +58,24 @@ type TransferRecord = {
   weeks: string[];
 };
 
+type BalanceRecord = {
+  id: string;
+  factory: string;
+  week: string;
+  productGroup: string;
+  metric: string;
+  aiMetric: string;
+  aiValue: number | null;
+  balanceValue: number | null;
+};
+
+type BalanceData = {
+  generatedAt: string;
+  sourceFile: string;
+  aiFile: string;
+  records: BalanceRecord[];
+};
+
 type AiData = {
   generatedAt: string;
   sourceFile: string;
@@ -71,7 +89,7 @@ type Feedback = {
   comment: string;
 };
 
-type AppTab = "feedback" | "transfer" | "upload";
+type AppTab = "feedback" | "transfer" | "balance" | "upload";
 
 type CellLike = {
   value?: unknown;
@@ -208,6 +226,7 @@ const navItems = [
   { label: "Dashboard", icon: HomeIcon, tab: "feedback" },
   { label: "บันทึก Feedback", icon: Edit3, tab: "feedback" },
   { label: "เทียบการโอน", icon: Factory, tab: "transfer" },
+  { label: "เทียบ Balance", icon: BarChart3, tab: "balance" },
   { label: "อัปโหลดผล AI", icon: Upload, tab: "upload" },
   { label: "ประวัติ Feedback", icon: Database, tab: "feedback" },
   { label: "วิเคราะห์ผล", icon: BarChart3 },
@@ -711,6 +730,7 @@ async function parseActualTransferWorkbook(file: File): Promise<TransferActualPa
 
 export default function Home() {
   const [data, setData] = useState<AiData | null>(null);
+  const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
   const [sheet, setSheet] = useState(allSheets);
   const [factory, setFactory] = useState("");
   const [week, setWeek] = useState("");
@@ -777,6 +797,13 @@ export default function Home() {
         const uploaded = window.localStorage.getItem(uploadedActualTransferKey);
         const parsed = uploaded ? (JSON.parse(uploaded) as TransferActualPayload) : {};
         setTransferActuals(Object.keys(parsed).length > 0 ? parsed : sampleTransfers);
+      })
+      .catch(() => undefined);
+
+    fetch("/balance-comparison-data.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((comparison: BalanceData | null) => {
+        if (comparison) setBalanceData(comparison);
       })
       .catch(() => undefined);
   }, []);
@@ -973,14 +1000,18 @@ export default function Home() {
                       ? "อัปโหลดผล AI"
                       : activeTab === "transfer"
                         ? "เทียบผล AI: การโอนสินค้า"
+                        : activeTab === "balance"
+                          ? "เทียบผล AI: Balance"
                         : "บันทึก Feedback: เทียบผล AI กับค่าจริง"}
                   </h1>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-500">
-                    {activeTab === "upload"
-                      ? "นำเข้าไฟล์ Excel ที่มีโครงสร้างชีตและหัวคอลัมน์แบบเดิม"
-                      : activeTab === "transfer"
-                        ? "ตรวจว่าต้นทาง ปลายทาง และปริมาณที่ AI แนะนำโอนตรงกับ Actual หรือไม่"
-                        : "กรอกและตรวจสอบความถูกต้องของผลลัพธ์ AI เทียบกับค่าจริง"}
+                      {activeTab === "upload"
+                        ? "นำเข้าไฟล์ Excel ที่มีโครงสร้างชีตและหัวคอลัมน์แบบเดิม"
+                        : activeTab === "transfer"
+                          ? "ตรวจว่าต้นทาง ปลายทาง และปริมาณที่ AI แนะนำโอนตรงกับ Actual หรือไม่"
+                          : activeTab === "balance"
+                            ? "เทียบผล AI กับไฟล์ Balance ตามโรงงาน สัปดาห์ และกลุ่มสินค้า"
+                          : "กรอกและตรวจสอบความถูกต้องของผลลัพธ์ AI เทียบกับค่าจริง"}
                   </p>
                 </div>
               </div>
@@ -1002,6 +1033,8 @@ export default function Home() {
                   </select>
                 ) : activeTab === "transfer" ? (
                   <TopButton>ชีท 4-5</TopButton>
+                ) : activeTab === "balance" ? (
+                  <TopButton>Balance</TopButton>
                 ) : null}
                 <TopButton>
                   <HelpCircle size={17} />
@@ -1026,6 +1059,12 @@ export default function Home() {
               <TransferComparison
                 records={transferRecords}
                 actuals={transferActuals}
+                feedback={feedback}
+                updateFeedback={updateFeedback}
+              />
+            ) : activeTab === "balance" ? (
+              <BalanceComparison
+                data={balanceData}
                 feedback={feedback}
                 updateFeedback={updateFeedback}
               />
@@ -1865,6 +1904,199 @@ function CommentCard({
           <Save size={18} />
           บันทึก Feedback
         </button>
+      </div>
+    </section>
+  );
+}
+
+function BalanceComparison({
+  data,
+  feedback,
+  updateFeedback,
+}: {
+  data: BalanceData | null;
+  feedback: Record<string, Feedback>;
+  updateFeedback: (id: string, patch: Partial<Feedback>) => void;
+}) {
+  const rows = useMemo(() => data?.records ?? [], [data]);
+  const [factoryFilters, setFactoryFilters] = useState<string[]>([]);
+  const [weekFilters, setWeekFilters] = useState<string[]>([]);
+  const [groupFilters, setGroupFilters] = useState<string[]>([]);
+  const [metricFilters, setMetricFilters] = useState<string[]>([]);
+  const [statusFilters, setStatusFilters] = useState<string[]>(["ต่างปานกลาง", "ต่างกันมาก"]);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const factories = useMemo(
+    () => Array.from(new Set(rows.map((row) => row.factory))).sort((a, b) => a.localeCompare(b, "th")),
+    [rows],
+  );
+  const weeks = useMemo(
+    () => Array.from(new Set(rows.map((row) => row.week))).sort((a, b) => Number(b) - Number(a)),
+    [rows],
+  );
+  const groups = useMemo(
+    () =>
+      Array.from(new Set(rows.map((row) => row.productGroup))).sort((a, b) =>
+        a.localeCompare(b, "th"),
+      ),
+    [rows],
+  );
+  const metrics = useMemo(
+    () => Array.from(new Set(rows.map((row) => row.metric))).sort((a, b) => a.localeCompare(b, "th")),
+    [rows],
+  );
+  const activeWeekFilters =
+    weekFilters.length > 0 && weekFilters.every((week) => weeks.includes(week))
+      ? weekFilters
+      : weeks[0]
+        ? [weeks[0]]
+        : [];
+
+  function balanceScore(aiValue: number | null, balanceValue: number | null) {
+    if (aiValue === null || balanceValue === null) return null;
+    const denominator = Math.max(Math.abs(balanceValue), 1);
+    const errorRate = Math.abs(aiValue - balanceValue) / denominator;
+    return Math.max(0, Math.round((1 - errorRate) * 100));
+  }
+
+  const filteredRows = rows.filter((row) => {
+    const status = scoreLabel(balanceScore(row.aiValue, row.balanceValue));
+    return (
+      (factoryFilters.length === 0 || factoryFilters.includes(row.factory)) &&
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(row.week)) &&
+      (groupFilters.length === 0 || groupFilters.includes(row.productGroup)) &&
+      (metricFilters.length === 0 || metricFilters.includes(row.metric)) &&
+      (statusFilters.length === 0 || statusFilters.includes(status))
+    );
+  });
+
+  function saveBalanceFeedback() {
+    window.localStorage.setItem(storageKey, JSON.stringify(feedback));
+    setSavedAt(
+      new Intl.DateTimeFormat("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date()),
+    );
+  }
+
+  return (
+    <section className="comparison-card min-w-0 rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-xl font-bold">เทียบผล AI กับ Balance</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            เทียบจากไฟล์ {data?.sourceFile ?? "Balance"} กับ {data?.aiFile ?? "AI"} เฉพาะคอลัมน์ที่จับคู่ได้
+          </p>
+        </div>
+        <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
+          {filteredRows.length.toLocaleString("th-TH")} รายการ
+        </span>
+      </div>
+
+      <div className="mb-4 grid gap-3 xl:grid-cols-5">
+        <TransferFilterBox label="สัปดาห์" options={weeks} values={activeWeekFilters} onChange={setWeekFilters} />
+        <TransferFilterBox label="โรงงาน" options={factories} values={factoryFilters} onChange={setFactoryFilters} />
+        <TransferFilterBox label="กลุ่มสินค้า" options={groups} values={groupFilters} onChange={setGroupFilters} />
+        <TransferFilterBox label="ตัวชี้วัด" options={metrics} values={metricFilters} onChange={setMetricFilters} />
+        <TransferFilterBox
+          label="สถานะ"
+          options={["ดี", "ต่างปานกลาง", "ต่างกันมาก", "รอข้อมูล"]}
+          values={statusFilters}
+          onChange={setStatusFilters}
+        />
+      </div>
+
+      <div className="mobile-table-frame min-w-0 rounded-lg border border-[#dfe6ef]">
+        <div className="mobile-table-scroll max-h-[680px] overflow-auto">
+          <table className="balance-table w-full min-w-[1280px] border-collapse text-sm">
+            <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
+              <tr>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">โรงงาน</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">สัปดาห์</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">กลุ่มสินค้า</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ตัวชี้วัด Balance</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ตัวชี้วัด AI</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">AI</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">Balance</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">ต่างกัน</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">สถานะ</th>
+                <th className="px-4 py-3">ความคิดเห็น</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRows.map((row) => {
+                const feedbackId = `balance|${row.id}`;
+                const itemFeedback = feedback[feedbackId] ?? { actual: "", accuracy: "", comment: "" };
+                const matchScore = balanceScore(row.aiValue, row.balanceValue);
+                const diff =
+                  row.aiValue === null || row.balanceValue === null
+                    ? null
+                    : row.balanceValue - row.aiValue;
+                const commentRequired = matchScore !== null && matchScore < 80;
+                const missingRequiredComment = commentRequired && !itemFeedback.comment.trim();
+
+                return (
+                  <tr key={row.id} className="border-t border-[#e8edf4]">
+                    <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">{row.factory}</td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">{row.week}</td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">{row.productGroup}</td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3">{row.metric}</td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3">{row.aiMetric}</td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">{formatNumber(row.aiValue)}</td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">{formatNumber(row.balanceValue)}</td>
+                    <td
+                      className={`border-r border-[#e8edf4] px-4 py-3 text-right font-mono ${
+                        diff !== null && diff > 0 ? "text-red-600" : "text-emerald-600"
+                      }`}
+                    >
+                      {diff === null ? "-" : `${diff > 0 ? "+" : ""}${formatNumber(diff)}`}
+                    </td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3 text-center">
+                      <span
+                        className={`inline-flex h-8 min-w-24 items-center justify-center rounded-md px-3 text-xs font-bold ${scoreTone(
+                          matchScore,
+                        )}`}
+                      >
+                        {scoreLabel(matchScore)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="relative">
+                        <input
+                          className={`h-9 w-full rounded-md border px-3 pr-9 text-sm outline-none ${
+                            missingRequiredComment
+                              ? "border-red-400 bg-red-50 focus:border-red-500"
+                              : "border-[#dfe6ef] focus:border-[#ef4b98]"
+                          }`}
+                          placeholder="กรอกความคิดเห็น..."
+                          value={itemFeedback.comment}
+                          onChange={(event) => updateFeedback(feedbackId, { comment: event.target.value })}
+                        />
+                        {commentRequired ? (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-lg font-bold text-red-500">
+                            *
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 border-t border-[#f5b4cf] pt-4 sm:flex-row sm:items-center sm:justify-end">
+        <button
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#ef3e8f] px-5 text-sm font-bold text-white shadow-sm hover:bg-[#dc2e81]"
+          type="button"
+          onClick={saveBalanceFeedback}
+        >
+          <Save size={18} />
+          บันทึกความเห็น
+        </button>
+        {savedAt ? <p className="text-xs font-bold text-emerald-600">บันทึกแล้ว {savedAt}</p> : null}
       </div>
     </section>
   );

@@ -140,10 +140,16 @@ body {
     min-width: 1080px;
   }
 
+  .balance-table {
+    min-width: 1040px;
+  }
+
   .feedback-table th,
   .feedback-table td,
   .transfer-table th,
-  .transfer-table td {
+  .transfer-table td,
+  .balance-table th,
+  .balance-table td {
     padding: 0.55rem 0.65rem;
     vertical-align: middle;
   }
@@ -151,7 +157,9 @@ body {
   .feedback-table th:first-child,
   .feedback-table td:first-child,
   .transfer-table th:first-child,
-  .transfer-table td:first-child {
+  .transfer-table td:first-child,
+  .balance-table th:first-child,
+  .balance-table td:first-child {
     position: sticky;
     left: 0;
     z-index: 1;
@@ -160,13 +168,15 @@ body {
   }
 
   .feedback-table thead th:first-child,
-  .transfer-table thead th:first-child {
+  .transfer-table thead th:first-child,
+  .balance-table thead th:first-child {
     z-index: 2;
     background: #fff5fa;
   }
 
   .feedback-table input,
-  .transfer-table input {
+  .transfer-table input,
+  .balance-table input {
     min-width: 7rem;
   }
 
