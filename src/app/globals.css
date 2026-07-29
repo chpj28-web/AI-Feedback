@@ -90,7 +90,6 @@ body {
     padding: 1rem;
     border-radius: 0.75rem;
   }
-
   .comparison-card > div:first-child {
     gap: 0.75rem;
   }
@@ -194,6 +193,25 @@ textarea {
 
 table {
   font-size: 17px;
+}
+
+.analyze-chart-scroll {
+  scrollbar-color: rgba(239, 62, 143, 0.55) rgba(244, 232, 239, 0.8);
+  scrollbar-width: thin;
+}
+
+.analyze-chart-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.analyze-chart-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(244, 232, 239, 0.8);
+}
+
+.analyze-chart-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(239, 62, 143, 0.55);
 }
 
 small,

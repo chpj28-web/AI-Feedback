@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   AlertCircle,
@@ -8,11 +8,11 @@ import {
   CheckCircle2,
   ChevronDown,
   Database,
+  Download,
   Edit3,
   Factory,
   Gauge,
   HelpCircle,
-  Home as HomeIcon,
   LogOut,
   Menu,
   MessageCircle,
@@ -20,13 +20,15 @@ import {
   Save,
   Search,
   Settings,
+  Sparkles,
   Target,
+  TrendingUp,
   Upload,
   User,
   Users,
 } from "lucide-react";
 import Image from "next/image";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
 
 type AiRecord = {
   id: string;
@@ -60,6 +62,8 @@ type TransferRecord = {
 
 type BalanceRecord = {
   id: string;
+  tableType: "factory" | "product-group";
+  sourceSheet: string;
   factory: string;
   week: string;
   productGroup: string;
@@ -73,6 +77,7 @@ type BalanceData = {
   generatedAt: string;
   sourceFile: string;
   aiFile: string;
+  mapFile?: string;
   records: BalanceRecord[];
 };
 
@@ -89,7 +94,13 @@ type Feedback = {
   comment: string;
 };
 
-type AppTab = "feedback" | "transfer" | "balance" | "upload";
+type UploadHistoryItem = {
+  type: "AI" | "Actual" | "Balance";
+  name: string;
+  uploadedAt: string;
+};
+
+type AppTab = "analyze" | "factoryFeedback" | "feedback" | "transfer" | "balance" | "upload";
 
 type CellLike = {
   value?: unknown;
@@ -165,6 +176,7 @@ const storageKey = "ai-feedback-review-v1";
 const uploadedDataKey = "ai-feedback-uploaded-ai-data-v2";
 const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v2";
 const uploadedActualTransferKey = "ai-feedback-uploaded-actual-transfer-v1";
+const uploadHistoryKey = "ai-feedback-upload-history-v1";
 const numberFormatter = new Intl.NumberFormat("th-TH", {
   maximumFractionDigits: 2,
 });
@@ -223,10 +235,11 @@ const actualMetricAliases: Record<string, string[]> = {
 };
 
 const navItems = [
-  { label: "Dashboard", icon: HomeIcon, tab: "feedback" },
-  { label: "บันทึก Feedback", icon: Edit3, tab: "feedback" },
-  { label: "เทียบการโอน", icon: Factory, tab: "transfer" },
-  { label: "เทียบ Balance", icon: BarChart3, tab: "balance" },
+  { label: "Feedback โรงงาน", icon: MessageCircle, tab: "factoryFeedback" },
+  { label: "วิเคราะห์ผล", icon: TrendingUp, tab: "analyze" },
+  { label: "AI vs Actual", icon: Edit3, tab: "feedback" },
+  { label: "AI vs Actual (โอน)", icon: Factory, tab: "transfer" },
+  { label: "AI vs แผน", icon: BarChart3, tab: "balance" },
   { label: "อัปโหลดผล AI", icon: Upload, tab: "upload" },
   { label: "ประวัติ Feedback", icon: Database, tab: "feedback" },
   { label: "วิเคราะห์ผล", icon: BarChart3 },
@@ -739,13 +752,18 @@ export default function Home() {
     "ต่างปานกลาง",
     "ต่างกันมาก",
   ]);
-  const [activeTab, setActiveTab] = useState<AppTab>("feedback");
+  const [activeTab, setActiveTab] = useState<AppTab>("factoryFeedback");
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedNames, setUploadedNames] = useState<{ ai?: string; actual?: string }>({});
+  const [uploadedNames, setUploadedNames] = useState<{ ai?: string; actual?: string; balance?: string }>({});
   const [uploadStatus, setUploadStatus] = useState<{
     tone: "success" | "error";
     message: string;
   } | null>(null);
+  const [uploadHistory, setUploadHistory] = useState<UploadHistoryItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    const saved = window.localStorage.getItem(uploadHistoryKey);
+    return saved ? JSON.parse(saved) : [];
+  });
   const [transferActuals, setTransferActuals] = useState<TransferActualPayload>(() => {
     if (typeof window === "undefined") return {};
     const saved = window.localStorage.getItem(uploadedActualTransferKey);
@@ -806,6 +824,7 @@ export default function Home() {
         if (comparison) setBalanceData(comparison);
       })
       .catch(() => undefined);
+
   }, []);
 
   useEffect(() => {
@@ -815,6 +834,10 @@ export default function Home() {
   useEffect(() => {
     window.localStorage.setItem(uploadedActualTransferKey, JSON.stringify(transferActuals));
   }, [transferActuals]);
+
+  useEffect(() => {
+    window.localStorage.setItem(uploadHistoryKey, JSON.stringify(uploadHistory));
+  }, [uploadHistory]);
 
   const records = useMemo(() => data?.records ?? [], [data]);
   const feedbackRecords = useMemo(
@@ -887,7 +910,6 @@ export default function Home() {
   const badCount = scores.filter((value) => value < 60).length;
   const closePercent =
     scores.length > 0 ? Math.round((goodCount / scores.length) * 100) : null;
-
   function updateFeedback(id: string, patch: Partial<Feedback>) {
     setFeedback((current) => ({
       ...current,
@@ -897,6 +919,14 @@ export default function Home() {
         ...patch,
       },
     }));
+  }
+
+  function recordUpload(type: UploadHistoryItem["type"], name: string) {
+    const uploadedAt = new Intl.DateTimeFormat("th-TH", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date());
+    setUploadHistory((current) => [{ type, name, uploadedAt }, ...current].slice(0, 12));
   }
 
   async function handleAiUpload(file: File) {
@@ -912,6 +942,7 @@ export default function Home() {
       const uploadedData = await parseAiWorkbook(file);
       setData(uploadedData);
       setUploadedNames((current) => ({ ...current, ai: file.name }));
+      recordUpload("AI", file.name);
       setSheet(allSheets);
       setFactory("");
       window.localStorage.setItem(uploadedDataKey, JSON.stringify(uploadedData));
@@ -965,6 +996,7 @@ export default function Home() {
       window.localStorage.setItem(uploadedActualKey, JSON.stringify(actualFeedback));
       window.localStorage.setItem(uploadedActualTransferKey, JSON.stringify(actualTransferPayload));
       setUploadedNames((current) => ({ ...current, actual: file.name }));
+      recordUpload("Actual", file.name);
       setUploadStatus({
         tone: "success",
         message: `เติมค่าจริงสำเร็จ: จับคู่ได้ ${Object.keys(actualFeedback).length.toLocaleString(
@@ -980,6 +1012,15 @@ export default function Home() {
     } finally {
       setIsUploading(false);
     }
+  }
+
+  async function handleBalanceUpload(file: File) {
+    setUploadedNames((current) => ({ ...current, balance: file.name }));
+    recordUpload("Balance", file.name);
+    setUploadStatus({
+      tone: "success",
+      message: `เพิ่มไฟล์แผน Balance แล้ว: ${file.name}`,
+    });
   }
 
   return (
@@ -998,19 +1039,21 @@ export default function Home() {
                   <h1 className="text-lg font-bold leading-snug sm:text-2xl">
                     {activeTab === "upload"
                       ? "อัปโหลดผล AI"
+                      : activeTab === "analyze"
+                        ? "วิเคราะห์ผล"
+                      : activeTab === "balance"
+                        ? "เทียบผล AI: Balance"
                       : activeTab === "transfer"
                         ? "เทียบผล AI: การโอนสินค้า"
-                        : activeTab === "balance"
-                          ? "เทียบผล AI: Balance"
                         : "บันทึก Feedback: เทียบผล AI กับค่าจริง"}
                   </h1>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-500">
                       {activeTab === "upload"
                         ? "นำเข้าไฟล์ Excel ที่มีโครงสร้างชีตและหัวคอลัมน์แบบเดิม"
+                        : activeTab === "balance"
+                          ? "เทียบผล AI กับไฟล์ Balance ตามโรงงาน สัปดาห์ และกลุ่มสินค้า"
                         : activeTab === "transfer"
                           ? "ตรวจว่าต้นทาง ปลายทาง และปริมาณที่ AI แนะนำโอนตรงกับ Actual หรือไม่"
-                          : activeTab === "balance"
-                            ? "เทียบผล AI กับไฟล์ Balance ตามโรงงาน สัปดาห์ และกลุ่มสินค้า"
                           : "กรอกและตรวจสอบความถูกต้องของผลลัพธ์ AI เทียบกับค่าจริง"}
                   </p>
                 </div>
@@ -1046,14 +1089,20 @@ export default function Home() {
           </header>
 
           <div className="space-y-5 px-4 py-5 sm:px-8">
-            {activeTab === "upload" ? (
+            {activeTab === "analyze" ? (
+              <AnalyzeVdpPanel data={balanceData} aiData={data} feedback={feedback} uploadedNames={uploadedNames} />
+            ) : activeTab === "factoryFeedback" ? (
+              <FactoryFeedbackPanel data={balanceData} feedback={feedback} updateFeedback={updateFeedback} />
+            ) : activeTab === "upload" ? (
               <UploadAiPanel
                 data={data}
                 isUploading={isUploading}
                 status={uploadStatus}
                 uploadedNames={uploadedNames}
+                uploadHistory={uploadHistory}
                 onUpload={handleAiUpload}
                 onActualUpload={handleActualUpload}
+                onBalanceUpload={handleBalanceUpload}
               />
             ) : activeTab === "transfer" ? (
               <TransferComparison
@@ -1123,6 +1172,8 @@ function Sidebar({
   activeTab: AppTab;
   setActiveTab: (tab: AppTab) => void;
 }) {
+  const tabs = navItems.filter((item): item is typeof item & { tab: AppTab } => "tab" in item);
+
   return (
     <aside className="hidden border-r border-[#e3e8f0] bg-white lg:flex lg:flex-col">
       <div className="flex h-24 items-center gap-3 border-b border-[#edf1f6] px-6">
@@ -1140,18 +1191,15 @@ function Sidebar({
       </div>
 
       <nav className="space-y-2 px-3 py-5">
-        {navItems.map((item) => {
+        {tabs.map((item) => {
           const Icon = item.icon;
-          const active =
-            activeTab === "feedback"
-              ? item.label === "บันทึก Feedback"
-              : "tab" in item && item.tab === activeTab;
+          const active = item.tab === activeTab;
 
           return (
             <button
               key={item.label}
               onClick={() => {
-                if ("tab" in item) setActiveTab(item.tab);
+                setActiveTab(item.tab);
               }}
               className={`flex h-12 w-full items-center gap-4 rounded-md px-4 text-left text-sm font-medium transition ${
                 active ? "bg-[#ffe8f1] text-[#ee3f95]" : "text-slate-600 hover:bg-slate-50"
@@ -1198,9 +1246,7 @@ function MobileTabBar({
       {tabs.map((item) => {
         const Icon = item.icon;
         const active =
-          activeTab === "feedback"
-            ? item.label === "บันทึก Feedback"
-            : item.tab === activeTab;
+          item.tab === activeTab;
 
         return (
           <button
@@ -1909,6 +1955,1199 @@ function CommentCard({
   );
 }
 
+function FactoryFeedbackPanel({
+  data,
+  feedback,
+  updateFeedback,
+}: {
+  data: BalanceData | null;
+  feedback: Record<string, Feedback>;
+  updateFeedback: (id: string, patch: Partial<Feedback>) => void;
+}) {
+  const rows = useMemo(() => dedupeBalanceRows(data?.records ?? []), [data]);
+  const [weekFilters, setWeekFilters] = useState<string[]>([]);
+  const [factoryFilters, setFactoryFilters] = useState<string[]>([]);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [savedCard, setSavedCard] = useState<{ id: string; time: string } | null>(null);
+  const weeks = Array.from(new Set(rows.map((row) => row.week).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+  const activeWeekFilters =
+    weekFilters.length > 0 && weekFilters.every((week) => weeks.includes(week))
+      ? weekFilters
+      : weeks[0]
+        ? [weeks[0]]
+        : [];
+  const factories = Array.from(new Set(rows.map((row) => row.factory).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, "th"),
+  );
+  const visibleFactories = factoryFilters.length > 0 ? factoryFilters : factories;
+  const productRows = rows.filter(
+    (row) =>
+      row.tableType === "product-group" &&
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(row.week)) &&
+      visibleFactories.includes(row.factory),
+  );
+  const factoryCards = visibleFactories
+    .map((factoryName) => {
+      const factoryRows = productRows.filter((row) => row.factory === factoryName);
+      const summary = summarizeVdpRows(factoryRows, factoryName);
+      const issues = summarizeVdpBy(factoryRows, "productGroup").slice(0, 5);
+      return { factoryName, summary, issues, rows: factoryRows };
+    })
+    .filter((item) => item.rows.length > 0);
+  const reasonOptions = [
+    "Demand เปลี่ยนจากแผน",
+    "Stock จริงไม่ตรงกับแผน",
+    "ข้อจำกัดกำลังผลิต",
+    "ข้อจำกัดการขนส่ง/โอน",
+    "มีคำสั่งขายเร่งด่วน",
+    "ข้อมูลตั้งต้นของ AI ไม่ครบ",
+  ];
+
+  function toggleReason(id: string, reason: string) {
+    const current = feedback[id]?.accuracy ? feedback[id].accuracy.split("|").filter(Boolean) : [];
+    updateFeedback(id, {
+      accuracy: current.includes(reason)
+        ? current.filter((item) => item !== reason).join("|")
+        : [...current, reason].join("|"),
+    });
+  }
+
+  function saveFactoryFeedback() {
+    window.localStorage.setItem(storageKey, JSON.stringify(feedback));
+    setSavedAt(
+      new Intl.DateTimeFormat("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date()),
+    );
+  }
+
+  function saveFactoryCard(id: string) {
+    window.localStorage.setItem(storageKey, JSON.stringify(feedback));
+    setSavedCard({
+      id,
+      time: new Intl.DateTimeFormat("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date()),
+    });
+  }
+
+  return (
+    <section className="space-y-5">
+      <div className="rounded-xl border border-[#f5b4cf] bg-white/95 p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold">Feedback โรงงาน</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            สรุปเฉพาะประเด็นสำคัญต่อโรงงาน/สัปดาห์ ให้กรอกเหตุผลรวมโดยไม่ต้องตอบทุกกลุ่มชิ้นส่วน
+          </p>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <TransferFilterBox label="สัปดาห์" options={weeks} values={activeWeekFilters} onChange={setWeekFilters} />
+          <TransferFilterBox label="โรงงาน" options={factories} values={factoryFilters} onChange={setFactoryFilters} />
+        </div>
+      </div>
+
+      <div className="grid gap-5">
+        {factoryCards.map(({ factoryName, summary, issues }) => {
+          const feedbackId = `factory-feedback|${factoryName}|${activeWeekFilters.join(",") || "all"}`;
+          const currentFeedback = feedback[feedbackId] ?? { actual: "", accuracy: "", comment: "" };
+          const selectedReasons = currentFeedback.accuracy.split("|").filter(Boolean);
+          const vdpDiff = summary.aiVdp - summary.balanceVdp;
+          const shortageDiff = summary.aiShortage - summary.balanceShortage;
+          const surplusDiff = summary.aiSurplus - summary.balanceSurplus;
+
+          return (
+            <div key={factoryName} className="rounded-xl border border-[#e3e8f0] bg-white/95 p-5 shadow-sm">
+              <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h3 className="text-lg font-bold">{factoryName}</h3>
+                  <p className="text-sm text-slate-500">สัปดาห์ {activeWeekFilters.join(", ") || "-"}</p>
+                </div>
+                <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
+                  Top {issues.length} กลุ่มที่ต่างจาก AI มากสุด
+                </span>
+              </div>
+
+              <div className="mb-4 grid gap-3 md:grid-cols-3">
+                <FactorySignal
+                  label="%VDP"
+                  aiValue={`${summary.aiVdp.toFixed(1)}%`}
+                  planValue={`${summary.balanceVdp.toFixed(1)}%`}
+                  verdict={vdpDiff >= 0 ? `AI ดีกว่าแผน ${formatNumber(Math.abs(vdpDiff))}%` : `แผนดีกว่า AI ${formatNumber(Math.abs(vdpDiff))}%`}
+                  detail="ดูจาก %VDP: ค่าสูงกว่าดีกว่า"
+                  good={vdpDiff >= 0}
+                />
+                <FactorySignal
+                  label="ของขาด"
+                  aiValue={`${formatCompact(summary.aiShortage)} ตัน`}
+                  planValue={`${formatCompact(summary.balanceShortage)} ตัน`}
+                  verdict={
+                    shortageDiff <= 0
+                      ? `AI ขาดน้อยกว่าแผน ${formatCompact(Math.abs(shortageDiff))} ตัน`
+                      : `แผนขาดน้อยกว่า AI ${formatCompact(Math.abs(shortageDiff))} ตัน`
+                  }
+                  detail="ดูจากของขาด: ค่าน้อยกว่าดีกว่า"
+                  good={shortageDiff <= 0}
+                />
+                <FactorySignal
+                  label="ของเหลือ"
+                  aiValue={`${formatCompact(summary.aiSurplus)} ตัน`}
+                  planValue={`${formatCompact(summary.balanceSurplus)} ตัน`}
+                  verdict={
+                    surplusDiff <= 0
+                      ? `AI เหลือน้อยกว่าแผน ${formatCompact(Math.abs(surplusDiff))} ตัน`
+                      : `แผนเหลือน้อยกว่า AI ${formatCompact(Math.abs(surplusDiff))} ตัน`
+                  }
+                  detail="ดูจากของเหลือ: ค่าน้อยกว่าดีกว่า"
+                  good={surplusDiff <= 0}
+                />
+              </div>
+
+              <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+                <div className="rounded-lg border border-[#edf1f6] p-4">
+                  <p className="mb-3 font-bold">กลุ่มที่โรงงานใช้ผลต่างจาก AI มากสุด</p>
+                  <div className="space-y-2">
+                    {issues.map((issue, index) => (
+                      <div key={issue.name} className="rounded-md bg-[#f8fafc] px-3 py-2 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-bold">{index + 1}. {issue.name}</span>
+                          <span className="font-mono text-xs text-slate-500">%VDP {issue.aiVdp.toFixed(1)}%</span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {describeIssueDifference(issue)}
+                        </p>
+                      </div>
+                    ))}
+                    {issues.length === 0 ? <p className="text-sm text-slate-500">ไม่พบประเด็นสำคัญ</p> : null}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-[#edf1f6] p-4">
+                  <p className="mb-3 font-bold">เหตุผลที่โรงงานใช้ผลต่างจาก AI</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {reasonOptions.map((reason) => (
+                      <label key={reason} className="flex items-center gap-2 rounded-md border border-[#edf1f6] px-3 py-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="size-4 accent-[#ef3e8f]"
+                          checked={selectedReasons.includes(reason)}
+                          onChange={() => toggleReason(feedbackId, reason)}
+                        />
+                        {reason}
+                      </label>
+                    ))}
+                  </div>
+                  <textarea
+                    className="mt-4 min-h-28 w-full resize-y rounded-md border border-[#dfe6ef] px-4 py-3 text-sm outline-none focus:border-[#ef3e8f]"
+                    placeholder="เขียนเหตุผลรวม เช่น ทำไมโรงงานใช้แผน/ผลจริงที่ต่างจาก AI ในรอบนี้..."
+                    value={currentFeedback.comment}
+                    onChange={(event) => updateFeedback(feedbackId, { comment: event.target.value })}
+                  />
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    {savedCard?.id === feedbackId ? (
+                      <span className="text-xs font-bold text-emerald-600">บันทึกแล้ว {savedCard.time}</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#ef3e8f] px-4 text-sm font-bold text-white shadow-sm hover:bg-[#dc2e81]"
+                      onClick={() => saveFactoryCard(feedbackId)}
+                    >
+                      <Save size={16} />
+                      บันทึก Feedback การ์ดนี้
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {factoryCards.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#f5b4cf] bg-white/80 p-8 text-center text-slate-500">
+            ไม่พบข้อมูลตามตัวกรอง
+          </div>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col items-end gap-2">
+        <button
+          type="button"
+          className="inline-flex h-11 items-center gap-2 rounded-md bg-[#ef3e8f] px-5 text-sm font-bold text-white shadow-sm hover:bg-[#dc2e81]"
+          onClick={saveFactoryFeedback}
+        >
+          <Save size={18} />
+          บันทึก Feedback โรงงาน
+        </button>
+        {savedAt ? <p className="text-xs font-bold text-emerald-600">บันทึกแล้ว {savedAt}</p> : null}
+      </div>
+    </section>
+  );
+}
+
+function FactorySignal({
+  label,
+  aiValue,
+  planValue,
+  verdict,
+  detail,
+  good,
+}: {
+  label: string;
+  aiValue: string;
+  planValue: string;
+  verdict: string;
+  detail: string;
+  good: boolean;
+}) {
+  return (
+    <div className={`rounded-lg border p-4 ${good ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className={`text-sm font-bold ${good ? "text-emerald-700" : "text-rose-700"}`}>{label}</p>
+        <span className={`rounded-md px-2 py-1 text-xs font-bold ${good ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"}`}>
+          {good ? "AI ดีกว่า" : "แผนดีกว่า"}
+        </span>
+      </div>
+      <p className="mt-2 text-lg font-bold">{verdict}</p>
+      <div className="mt-3 grid gap-2 text-xs font-semibold text-slate-600">
+        <div className="flex justify-between gap-3 rounded-md bg-white/70 px-3 py-2">
+          <span>AI</span>
+          <span className="font-mono">{aiValue}</span>
+        </div>
+        <div className="flex justify-between gap-3 rounded-md bg-white/70 px-3 py-2">
+          <span>แผน/ผลที่โรงงานใช้</span>
+          <span className="font-mono">{planValue}</span>
+        </div>
+      </div>
+      <p className="mt-2 text-xs font-semibold text-slate-500">{detail}</p>
+    </div>
+  );
+}
+
+function describeIssueDifference(issue: VdpSummary) {
+  const vdpDiff = issue.aiVdp - issue.balanceVdp;
+  const shortageDiff = issue.aiShortage - issue.balanceShortage;
+  const surplusDiff = issue.aiSurplus - issue.balanceSurplus;
+  const parts = [
+    vdpDiff >= 0
+      ? `AI %VDP สูงกว่าแผน ${Math.abs(vdpDiff).toFixed(1)}%`
+      : `แผน %VDP สูงกว่า AI ${Math.abs(vdpDiff).toFixed(1)}%`,
+    shortageDiff <= 0
+      ? `AI ขาดน้อยกว่าแผน ${formatCompact(Math.abs(shortageDiff))} ตัน`
+      : `แผนขาดน้อยกว่า AI ${formatCompact(Math.abs(shortageDiff))} ตัน`,
+    surplusDiff <= 0
+      ? `AI เหลือน้อยกว่าแผน ${formatCompact(Math.abs(surplusDiff))} ตัน`
+      : `แผนเหลือน้อยกว่า AI ${formatCompact(Math.abs(surplusDiff))} ตัน`,
+  ];
+
+  return parts.join(" · ");
+}
+
+function AnalyzeVdpPanel({
+  data,
+  aiData,
+  feedback,
+  uploadedNames,
+}: {
+  data: BalanceData | null;
+  aiData: AiData | null;
+  feedback: Record<string, Feedback>;
+  uploadedNames: { ai?: string; actual?: string; balance?: string };
+}) {
+  const [compareMode, setCompareMode] = useState<"plan" | "actual">("plan");
+  const [weekFilter, setWeekFilter] = useState<string[]>([]);
+  const [factoryFilter, setFactoryFilter] = useState<string[]>([]);
+  const planRows = useMemo(() => dedupeBalanceRows(data?.records ?? []), [data]);
+  const actualRows = useMemo(() => buildActualAnalyzeRows(aiData, feedback), [aiData, feedback]);
+  const rows = compareMode === "plan" ? planRows : actualRows;
+  const weeks = Array.from(new Set(rows.map((row) => row.week).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+  const activeWeekFilters =
+    weekFilter.length > 0 && weekFilter.every((week) => weeks.includes(week))
+      ? weekFilter
+      : weeks[0]
+        ? [weeks[0]]
+        : [];
+  const factories = Array.from(new Set(rows.map((row) => row.factory).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, "th"),
+  );
+  const filteredRows = rows.filter(
+    (row) =>
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(row.week)) &&
+      (factoryFilter.length === 0 || factoryFilter.includes(row.factory)),
+  );
+  const productRows = filteredRows.filter((row) => row.tableType === "product-group");
+  const factorySummaries = summarizeVdpBy(productRows, "factory");
+  const productSummaries = summarizeVdpBy(productRows, "productGroup");
+  const total = summarizeVdpRows(productRows, "รวมทั้งหมด");
+  const topProducts = productSummaries.slice(0, 10);
+  const vdpDiff = total.aiVdp - total.balanceVdp;
+  const shortageDiff = total.aiShortage - total.balanceShortage;
+  const surplusDiff = total.aiSurplus - total.balanceSurplus;
+  const supplyDiff = total.aiSupply - total.balanceSupply;
+  const profitImpact = (vdpDiff / 100) * Math.max(total.balanceSupply, 1);
+  const dimensionSummaries = [
+    {
+      label: "%VDP",
+      better: vdpDiff >= 0 ? "AI Balance" : "Balance Plan",
+      rule: "ค่าสูงกว่าดีกว่า",
+      ai: `${total.aiVdp.toFixed(1)}%`,
+      balance: `${total.balanceVdp.toFixed(1)}%`,
+      diff: `${formatSigned(vdpDiff)}%`,
+      tone: vdpDiff >= 0 ? "green" : "red",
+    },
+    {
+      label: "ของขาด",
+      better: shortageDiff <= 0 ? "AI Balance" : "Balance Plan",
+      rule: "ค่าน้อยกว่าดีกว่า",
+      ai: `${formatCompact(total.aiShortage)} ตัน`,
+      balance: `${formatCompact(total.balanceShortage)} ตัน`,
+      diff: `${formatSigned(shortageDiff)} ตัน`,
+      tone: shortageDiff <= 0 ? "green" : "red",
+    },
+    {
+      label: "ของเหลือ",
+      better: surplusDiff <= 0 ? "AI Balance" : "Balance Plan",
+      rule: "ค่าน้อยกว่าดีกว่า",
+      ai: `${formatCompact(total.aiSurplus)} ตัน`,
+      balance: `${formatCompact(total.balanceSurplus)} ตัน`,
+      diff: `${formatSigned(surplusDiff)} ตัน`,
+      tone: surplusDiff <= 0 ? "green" : "orange",
+    },
+    {
+      label: "Total Supply",
+      better: Math.abs(supplyDiff) <= Math.abs(total.balanceSupply * 0.02) ? "ใกล้เคียงกัน" : supplyDiff >= 0 ? "AI มากกว่า" : "Balance มากกว่า",
+      rule: "ใช้ดูปริมาณ supply รวม",
+      ai: `${formatCompact(total.aiSupply)} ตัน`,
+      balance: `${formatCompact(total.balanceSupply)} ตัน`,
+      diff: `${formatSigned(supplyDiff)} ตัน`,
+      tone: Math.abs(supplyDiff) <= Math.abs(total.balanceSupply * 0.02) ? "green" : "orange",
+    },
+    {
+      label: "กำไร",
+      better: profitImpact >= 0 ? "AI Balance" : "Balance Plan",
+      rule: "ประมาณจากส่วนต่าง %VDP",
+      ai: formatCompact(profitImpact),
+      balance: "รอข้อมูลราคาขาย/ต้นทุน",
+      diff: formatSigned(profitImpact),
+      tone: profitImpact >= 0 ? "green" : "red",
+    },
+  ] as const;
+
+  return (
+    <section className="analyze-page space-y-5">
+      <div className="grid gap-3 rounded-xl border border-[#f5b4cf] bg-white/95 p-4 shadow-sm lg:grid-cols-[240px_1fr_1fr]">
+        <div className="grid grid-cols-2 rounded-lg border border-[#ffd1e3] bg-[#fff7fb] p-1">
+          <button
+            type="button"
+            className={`h-10 rounded-md text-sm font-bold ${compareMode === "plan" ? "bg-[#ef3e8f] text-white" : "text-slate-600"}`}
+            onClick={() => setCompareMode("plan")}
+          >
+            AI vs แผน
+          </button>
+          <button
+            type="button"
+            className={`h-10 rounded-md text-sm font-bold ${compareMode === "actual" ? "bg-[#ef3e8f] text-white" : "text-slate-600"}`}
+            onClick={() => setCompareMode("actual")}
+          >
+            AI vs Actual
+          </button>
+        </div>
+        <TransferFilterBox label="สัปดาห์" options={weeks} values={activeWeekFilters} onChange={setWeekFilter} />
+        <TransferFilterBox label="โรงงาน" options={factories} values={factoryFilter} onChange={setFactoryFilter} />
+      </div>
+
+      <div className="rounded-xl border border-[#f5b4cf] bg-white/95 p-5 shadow-sm">
+        <div className="mb-4">
+          <p className="text-sm font-bold text-[#ef3e8f]">สรุปแยกตามมิติ</p>
+          <h3 className="mt-1 text-2xl font-bold">ดูว่า AI หรือ Balance ดีกว่าในแต่ละด้าน</h3>
+          <p className="mt-2 max-w-4xl text-sm text-slate-600">
+            หน้านี้ไม่รวมคะแนนเป็นสูตรเดียว เพื่อให้เห็นชัดว่าฝั่งไหนชนะด้าน %VDP, ของขาด, ของเหลือ, Total Supply และกำไร
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {dimensionSummaries.map((item) => (
+            <DimensionSummaryCard key={item.label} item={item} />
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+        <AnalyzeCard title="%VDP เปรียบเทียบรายโรงงาน">
+          <div className="analyze-chart-scroll w-full max-w-full overflow-x-auto overflow-y-hidden pb-3">
+            <div className="flex h-[340px] min-w-max items-end gap-3 border-b border-l border-[#dfe6ef] px-4 pb-8">
+              {factorySummaries.map((item) => (
+                <VdpFactoryBars key={item.name} item={item} />
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 flex justify-center gap-5 text-xs font-bold text-slate-500">
+            <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-blue-500" /> AI Balance</span>
+            <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-emerald-500" /> Balance Plan</span>
+          </div>
+        </AnalyzeCard>
+
+        <AnalyzeCard title="เปรียบเทียบ Supply / ของขาด / ของเหลือ">
+          <div className="space-y-5">
+            <SupplyCompareBars
+              label="Total Supply"
+              aiValue={total.aiSupply}
+              balanceValue={total.balanceSupply}
+              unit="ตัน"
+              betterText="ใช้ดูปริมาณรวม ไม่ตัดสินดี/แย่ทันที"
+            />
+            <SupplyCompareBars
+              label="ของขาด"
+              aiValue={total.aiShortage}
+              balanceValue={total.balanceShortage}
+              unit="ตัน"
+              betterText="ค่าน้อยกว่าดีกว่า"
+              lowerIsBetter
+            />
+            <SupplyCompareBars
+              label="ของเหลือ"
+              aiValue={total.aiSurplus}
+              balanceValue={total.balanceSurplus}
+              unit="ตัน"
+              betterText="ค่าน้อยกว่าดีกว่า"
+              lowerIsBetter
+            />
+          </div>
+        </AnalyzeCard>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr_0.9fr]">
+        <AnalyzeCard title="เทียบ KPI สำคัญ">
+          <div className="mobile-table-frame rounded-lg border border-[#e8edf4]">
+            <div className="mobile-table-scroll overflow-auto">
+              <table className="w-full min-w-[680px] border-collapse text-sm">
+                <thead className="bg-[#f8fafc] text-xs text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 text-left">KPI</th>
+                    <th className="px-3 py-2 text-right">AI Balance</th>
+                    <th className="px-3 py-2 text-right">Balance Plan</th>
+                    <th className="px-3 py-2 text-right">Difference</th>
+                    <th className="px-3 py-2 text-right">%Diff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["%VDP", total.aiVdp, total.balanceVdp, "%"],
+                    ["Total Supply", total.aiSupply, total.balanceSupply, "ตัน"],
+                    ["ของขาด (Shortage)", total.aiShortage, total.balanceShortage, "ตัน"],
+                    ["ของเหลือ (Surplus)", total.aiSurplus, total.balanceSurplus, "ตัน"],
+                  ].map(([label, ai, balance, unit]) => {
+                    const aiValue = Number(ai);
+                    const balanceValue = Number(balance);
+                    const diff = aiValue - balanceValue;
+                    const percent = balanceValue ? (diff / Math.abs(balanceValue)) * 100 : 0;
+                    return (
+                      <tr key={String(label)} className="border-t border-[#edf1f6]">
+                        <td className="px-3 py-2 font-bold">{label}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatNumber(aiValue)} {unit}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatNumber(balanceValue)} {unit}</td>
+                        <td className={`px-3 py-2 text-right font-mono ${diff >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatSigned(diff)}</td>
+                        <td className={`px-3 py-2 text-right font-mono ${diff >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatSigned(percent)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </AnalyzeCard>
+
+        <AnalyzeCard title="Top 10 สินค้า/ชิ้นส่วน ที่คลาดเคลื่อนมากที่สุด">
+          <div className="mobile-table-frame rounded-lg border border-[#e8edf4]">
+            <div className="mobile-table-scroll overflow-auto">
+              <table className="w-full min-w-[780px] border-collapse text-sm">
+                <thead className="bg-[#f8fafc] text-xs text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 text-left">สินค้า/ชิ้นส่วน</th>
+                    <th className="px-3 py-2 text-right">%VDP AI</th>
+                    <th className="px-3 py-2 text-right">%VDP Balance</th>
+                    <th className="px-3 py-2 text-right">ของขาดต่าง</th>
+                    <th className="px-3 py-2 text-right">ของเหลือต่าง</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topProducts.map((item, index) => (
+                    <tr key={item.name} className="border-t border-[#edf1f6]">
+                      <td className="px-3 py-2 font-medium">{index + 1}. {item.name}</td>
+                      <td className="px-3 py-2 text-right font-mono">{item.aiVdp.toFixed(1)}%</td>
+                      <td className="px-3 py-2 text-right font-mono">{item.balanceVdp.toFixed(1)}%</td>
+                      <td className="px-3 py-2 text-right font-mono text-red-600">{formatSigned(item.aiShortage - item.balanceShortage)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-orange-600">{formatSigned(item.aiSurplus - item.balanceSurplus)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </AnalyzeCard>
+
+        <AnalyzeCard title="Impact จากการใช้ AI Balance">
+          <div className="space-y-3">
+            <Insight tone={vdpDiff >= 0 ? "green" : "red"} icon={<TrendingUp size={18} />} text={`${vdpDiff >= 0 ? "เพิ่ม" : "ลด"} %VDP ${formatSigned(vdpDiff)}%`} />
+            <Insight tone="red" icon={<AlertCircle size={18} />} text={`ของขาดต่างจากแผน ${formatSigned(shortageDiff)} ตัน`} />
+            <Insight tone="yellow" icon={<Sparkles size={18} />} text={`ของเหลือต่างจากแผน ${formatSigned(surplusDiff)} ตัน`} />
+            <Insight tone="green" icon={<CheckCircle2 size={18} />} text={`ไฟล์ AI: ${uploadedNames.ai ?? data?.aiFile ?? "-"}`} />
+            <Insight tone="yellow" icon={<Database size={18} />} text={`แผน Balance: ${uploadedNames.balance ?? data?.sourceFile ?? "-"}`} />
+          </div>
+        </AnalyzeCard>
+      </div>
+    </section>
+  );
+}
+
+function AnalyzePanel({
+  data,
+  uploadedNames,
+}: {
+  data: BalanceData | null;
+  uploadedNames: { ai?: string; actual?: string; balance?: string };
+}) {
+  const rows = useMemo(() => dedupeBalanceRows(data?.records ?? []), [data]);
+  const productRows = rows.filter((row) => row.tableType === "product-group");
+  const factories = Array.from(new Set(rows.map((row) => row.factory).filter(Boolean)));
+  const weeks = Array.from(new Set(rows.map((row) => row.week).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+  const weekLabel = weeks[0] ? `สัปดาห์ที่ ${weeks[0]}` : "สัปดาห์ล่าสุด";
+  const comparableRows = rows.filter((row) => row.aiValue !== null && row.balanceValue !== null);
+  const planTotal = sumBalanceMetric(productRows, "ผลิต", "balanceValue");
+  const aiTotal = sumBalanceMetric(productRows, "ผลิต", "aiValue");
+  const diffTotal = aiTotal - planTotal;
+  const diffPercent = planTotal ? (diffTotal / Math.abs(planTotal)) * 100 : 0;
+  const avgAccuracy = comparableRows.length
+    ? comparableRows.reduce((sum, row) => sum + analyzeScore(row.aiValue, row.balanceValue), 0) / comparableRows.length
+    : 0;
+  const majorDiffs = comparableRows.filter((row) => analyzeScore(row.aiValue, row.balanceValue) < 70).length;
+  const factorySummaries = summarizeAnalyzeBy(productRows, "factory");
+  const topProducts = summarizeAnalyzeBy(productRows, "productGroup").slice(0, 10);
+  const trend = [0.45, 1.12, 2.35, Number(diffTotal.toFixed(2))];
+
+  return (
+    <section className="analyze-page space-y-5">
+      <div className="relative overflow-hidden rounded-xl border border-[#dbe8f5] bg-white shadow-sm">
+        <div className="absolute inset-0 bg-[url('/background.png')] bg-cover bg-center opacity-55" />
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-white/20" />
+        <div className="relative flex min-h-40 flex-col justify-between gap-5 p-5 lg:flex-row lg:items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-[#172033]">AI vs Balance Plan Overview</h2>
+            <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600">
+              ภาพรวมการเปรียบเทียบผลลัพธ์ AI กับแผน Balance ของโรงงาน เพื่อดูผลกระทบเชิง Business
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <AnalyzePill>{weekLabel} <CalendarDays size={16} /></AnalyzePill>
+            <AnalyzePill>โรงงานทั้งหมด {factorySummaries.length || factories.length || "-"} แห่ง <ChevronDown size={16} /></AnalyzePill>
+            <AnalyzePill><Download size={16} /> ดาวน์โหลดรายงาน</AnalyzePill>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <AnalyzeKpi icon={<Database size={28} />} label="มูลค่าการผลิตตามแผน (Plan)" value={formatCompact(planTotal)} detail="100% ของแผนทั้งหมด" tone="blue" />
+        <AnalyzeKpi icon={<Target size={28} />} label="มูลค่าผลลัพธ์จาก AI" value={formatCompact(aiTotal)} detail={`${formatSigned(diffTotal)} (${formatSigned(diffPercent)}%)`} tone="green" />
+        <AnalyzeKpi icon={<TrendingUp size={28} />} label="มูลค่าความแตกต่าง" value={formatSigned(diffTotal)} detail={`${formatSigned(diffPercent)}% เทียบกับแผน`} tone={diffTotal >= 0 ? "orange" : "rose"} />
+        <AnalyzeKpi icon={<Gauge size={28} />} label="ประสิทธิภาพการเทียบผล" value={`${avgAccuracy.toFixed(1)}%`} detail="AI เทียบกับ Balance" tone="teal" />
+        <AnalyzeKpi icon={<AlertCircle size={28} />} label="รายการต่างกันมาก" value={`${majorDiffs.toLocaleString("th-TH")}`} detail="ต้องตรวจสอบเชิง Business" tone="purple" />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+        <AnalyzeCard title="เปรียบเทียบมูลค่ารวมรายโรงงาน">
+          <div className="max-h-[520px] space-y-3 overflow-auto pr-2">
+            {factorySummaries.map((item) => (
+              <AnalyzeBarRow key={item.name} item={item} />
+            ))}
+            {factorySummaries.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-[#dfe6ef] p-6 text-center text-sm text-slate-500">
+                ไม่พบข้อมูลรายโรงงาน
+              </div>
+            ) : null}
+          </div>
+        </AnalyzeCard>
+
+        <AnalyzeCard title="ความแตกต่างแยกตามสินค้า/ชิ้นส่วน (Top 10)">
+          <div className="mobile-table-frame rounded-lg border border-[#e8edf4]">
+            <div className="mobile-table-scroll overflow-auto">
+              <table className="w-full min-w-[760px] border-collapse text-sm">
+                <thead className="bg-[#f8fafc] text-xs text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 text-left">สินค้า/ชิ้นส่วน</th>
+                    <th className="px-3 py-2 text-right">Plan</th>
+                    <th className="px-3 py-2 text-right">AI</th>
+                    <th className="px-3 py-2 text-right">ต่างกัน</th>
+                    <th className="px-3 py-2 text-right">ต่างกัน (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topProducts.map((item, index) => (
+                    <tr key={item.name} className="border-t border-[#edf1f6]">
+                      <td className="px-3 py-2 font-medium">{index + 1}. {item.name}</td>
+                      <td className="px-3 py-2 text-right font-mono">{formatNumber(item.plan)}</td>
+                      <td className="px-3 py-2 text-right font-mono">{formatNumber(item.ai)}</td>
+                      <td className={`px-3 py-2 text-right font-mono ${item.diff >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        {formatSigned(item.diff)}
+                      </td>
+                      <td className={`px-3 py-2 text-right font-mono ${item.diff >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        {formatSigned(item.percent)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </AnalyzeCard>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[0.85fr_0.85fr_1fr_1.15fr]">
+        <AnalyzeCard title="Impact ทางการเงิน">
+          <div className="space-y-4 text-sm">
+            <AnalyzeMoney label="เพิ่มขึ้นจากแผน" value={formatSigned(Math.max(diffTotal, 0))} />
+            <AnalyzeMoney label="คิดเป็น" value={`${formatSigned(diffPercent)}%`} />
+            <AnalyzeMoney label="หากทำได้ต่อเนื่องทั้งปี" value={formatSigned(diffTotal * 52)} />
+          </div>
+        </AnalyzeCard>
+
+        <AnalyzeCard title="ความแม่นยำของ AI">
+          <div className="flex items-center gap-5">
+            <div className="grid size-32 place-items-center rounded-full bg-[conic-gradient(#3b82f6_var(--score),#e8eef8_0)]" style={{ "--score": `${avgAccuracy}%` } as CSSProperties}>
+              <div className="grid size-20 place-items-center rounded-full bg-white text-xl font-bold">{avgAccuracy.toFixed(1)}%</div>
+            </div>
+            <div className="flex-1 space-y-2 text-sm">
+              <MetricLine label="R²" value={(avgAccuracy / 100).toFixed(3)} />
+              <MetricLine label="MAPE" value={`${(100 - avgAccuracy).toFixed(2)}%`} />
+              <MetricLine label="MAE" value={formatCompact(Math.abs(diffTotal) / Math.max(factories.length, 1))} />
+            </div>
+          </div>
+        </AnalyzeCard>
+
+        <AnalyzeCard title="สรุปประเด็นสำคัญ">
+          <div className="space-y-3 text-sm">
+            <Insight tone="green" icon={<CheckCircle2 size={18} />} text={`AI ให้ผลรวม ${diffTotal >= 0 ? "สูงกว่า" : "ต่ำกว่า"}แผน ${formatSigned(diffTotal)}`} />
+            <Insight tone="yellow" icon={<Sparkles size={18} />} text={`สินค้า/ชิ้นส่วนที่ต่างมากสุด: ${topProducts[0]?.name ?? "-"}`} />
+            <Insight tone="red" icon={<AlertCircle size={18} />} text={`${majorDiffs.toLocaleString("th-TH")} รายการควรตรวจสอบก่อนใช้งานจริง`} />
+          </div>
+        </AnalyzeCard>
+
+        <AnalyzeCard title="แนวโน้ม 4 สัปดาห์ล่าสุด">
+          <div className="flex h-44 items-end gap-4 border-b border-l border-[#dfe6ef] px-4 pb-4">
+            {trend.map((value, index) => (
+              <div key={index} className="flex flex-1 flex-col items-center gap-2">
+                <span className="text-xs font-bold text-slate-600">{formatSigned(value)}</span>
+                <div className="w-full rounded-t-md bg-emerald-400" style={{ height: `${Math.max(18, Math.min(130, Math.abs(value) * 24))}px` }} />
+                <span className="text-xs text-slate-500">W{index + 18}</span>
+              </div>
+            ))}
+          </div>
+        </AnalyzeCard>
+      </div>
+
+      <p className="text-right text-xs text-slate-500">
+        AI: {uploadedNames.ai ?? data?.aiFile ?? "-"} | Balance: {uploadedNames.balance ?? data?.sourceFile ?? "-"}
+      </p>
+    </section>
+  );
+}
+
+void AnalyzePanel;
+
+type AnalyzeSummary = {
+  name: string;
+  plan: number;
+  ai: number;
+  diff: number;
+  percent: number;
+};
+
+type VdpSummary = {
+  name: string;
+  aiSupply: number;
+  balanceSupply: number;
+  aiShortage: number;
+  balanceShortage: number;
+  aiSurplus: number;
+  balanceSurplus: number;
+  aiVdp: number;
+  balanceVdp: number;
+  severity: number;
+};
+
+function buildActualAnalyzeRows(aiData: AiData | null, feedback: Record<string, Feedback>): BalanceRecord[] {
+  if (!aiData) return [];
+
+  return aiData.records
+    .filter((record) => record.kind === "number" && feedback[record.id]?.actual)
+    .flatMap((record) => {
+      const actualValue = numericValue(feedback[record.id]?.actual ?? "");
+      if (actualValue === null) return [];
+      const week = record.weeks[record.weeks.length - 1] ?? "";
+      const metric = normalizeAnalyzeMetric(record.metric);
+      if (!metric) return [];
+
+      return [
+        {
+          id: `actual-analyze|${record.id}`,
+          tableType: "product-group" as const,
+          sourceSheet: record.sheet,
+          factory: record.factory,
+          week,
+          productGroup: record.metric,
+          metric,
+          aiMetric: record.metric,
+          aiValue: record.aiValue,
+          balanceValue: actualValue,
+        },
+      ];
+    });
+}
+
+function normalizeAnalyzeMetric(metric: string) {
+  const lower = metric.toLowerCase();
+  if (metric.includes("ขาด") || metric.includes("เหลือ")) return "สินค้าที่ขาด/เหลือจากการบาล้าน";
+  if (metric.includes("ผลิต")) return "ผลิต";
+  if (lower.includes("total supply")) return "Total Supply";
+  if (lower.includes("ของขาด") || lower.includes("ของเหลือ") || lower.includes("shortage")) {
+    return "สินค้าที่ขาด/เหลือจากการบาล้าน";
+  }
+  if (lower.includes("production") || metric.includes("ผลิต")) return "ผลิต";
+  return "";
+}
+
+function summarizeVdpBy(rows: BalanceRecord[], key: "factory" | "productGroup") {
+  const grouped = new Map<string, BalanceRecord[]>();
+  rows.forEach((row) => {
+    const name = row[key] || "-";
+    const current = grouped.get(name) ?? [];
+    current.push(row);
+    grouped.set(name, current);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([name, groupRows]) => summarizeVdpRows(groupRows, name))
+    .sort((a, b) => b.severity - a.severity);
+}
+
+function summarizeVdpRows(rows: BalanceRecord[], name: string): VdpSummary {
+  const summary = {
+    name,
+    aiSupply: 0,
+    balanceSupply: 0,
+    aiShortage: 0,
+    balanceShortage: 0,
+    aiSurplus: 0,
+    balanceSurplus: 0,
+  };
+
+  rows.forEach((row) => {
+    const metric = row.metric.toLowerCase();
+    if (metric.includes("total supply")) {
+      summary.aiSupply += row.aiValue ?? 0;
+      summary.balanceSupply += row.balanceValue ?? 0;
+    }
+
+    if (metric.includes("ขาด") || metric.includes("เหลือ") || metric.includes("shortage")) {
+      addShortageSurplus(summary, row.aiValue ?? 0, "ai");
+      addShortageSurplus(summary, row.balanceValue ?? 0, "balance");
+    }
+  });
+
+  const aiVdp = computeVdp(summary.aiSupply, summary.aiShortage);
+  const balanceVdp = computeVdp(summary.balanceSupply, summary.balanceShortage);
+
+  return {
+    ...summary,
+    aiVdp,
+    balanceVdp,
+    severity:
+      Math.abs(aiVdp - balanceVdp) +
+      Math.abs(summary.aiShortage - summary.balanceShortage) / 100 +
+      Math.abs(summary.aiSurplus - summary.balanceSurplus) / 100,
+  };
+}
+
+function addShortageSurplus(
+  summary: {
+    aiShortage: number;
+    balanceShortage: number;
+    aiSurplus: number;
+    balanceSurplus: number;
+  },
+  value: number,
+  target: "ai" | "balance",
+) {
+  const shortageKey = target === "ai" ? "aiShortage" : "balanceShortage";
+  const surplusKey = target === "ai" ? "aiSurplus" : "balanceSurplus";
+
+  if (value < 0) {
+    summary[shortageKey] += Math.abs(value);
+  } else {
+    summary[surplusKey] += value;
+  }
+}
+
+function computeVdp(supply: number, shortage: number) {
+  if (supply <= 0) return 0;
+  return Math.max(0, Math.min(100, ((supply - shortage) / supply) * 100));
+}
+
+function sumBalanceMetric(rows: BalanceRecord[], metric: string, field: "aiValue" | "balanceValue") {
+  return rows
+    .filter((row) => row.metric.toLowerCase().includes(metric.toLowerCase()))
+    .reduce((sum, row) => sum + (row[field] ?? 0), 0);
+}
+
+function summarizeAnalyzeBy(rows: BalanceRecord[], key: "factory" | "productGroup"): AnalyzeSummary[] {
+  const summaries = new Map<string, { plan: number; ai: number }>();
+  rows
+    .filter((row) => row.metric === "ผลิต")
+    .forEach((row) => {
+      const name = row[key] || "-";
+      const current = summaries.get(name) ?? { plan: 0, ai: 0 };
+      current.plan += row.balanceValue ?? 0;
+      current.ai += row.aiValue ?? 0;
+      summaries.set(name, current);
+    });
+
+  return Array.from(summaries.entries())
+    .map(([name, value]) => {
+      const diff = value.ai - value.plan;
+      return {
+        name,
+        plan: value.plan,
+        ai: value.ai,
+        diff,
+        percent: value.plan ? (diff / Math.abs(value.plan)) * 100 : 0,
+      };
+    })
+    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+}
+
+function analyzeScore(aiValue: number | null, balanceValue: number | null) {
+  if (aiValue === null || balanceValue === null) return 0;
+  const denominator = Math.max(Math.abs(balanceValue), 1);
+  const errorRate = Math.abs(aiValue - balanceValue) / denominator;
+  return Math.max(0, Math.round((1 - errorRate) * 100));
+}
+
+function formatCompact(value: number) {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${numberFormatter.format(value / 1_000_000)} ล้าน`;
+  if (abs >= 1_000) return `${numberFormatter.format(value / 1_000)} พัน`;
+  return numberFormatter.format(value);
+}
+
+function formatSigned(value: number) {
+  const formatted = numberFormatter.format(value);
+  return value > 0 ? `+${formatted}` : formatted;
+}
+
+function AnalyzePill({ children }: { children: ReactNode }) {
+  return (
+    <button className="inline-flex h-11 items-center gap-2 rounded-md border border-[#dfe6ef] bg-white/90 px-4 text-sm font-bold text-slate-700 shadow-sm">
+      {children}
+    </button>
+  );
+}
+
+function AnalyzeKpi({
+  icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+  tone: "blue" | "green" | "orange" | "rose" | "teal" | "purple";
+}) {
+  const tones = {
+    blue: "bg-blue-50 text-blue-600",
+    green: "bg-emerald-50 text-emerald-600",
+    orange: "bg-orange-50 text-orange-600",
+    rose: "bg-rose-50 text-rose-600",
+    teal: "bg-teal-50 text-teal-600",
+    purple: "bg-violet-50 text-violet-600",
+  };
+
+  return (
+    <div className="rounded-xl border border-[#e3e8f0] bg-white/90 p-5 shadow-sm">
+      <div className="flex items-center gap-4">
+        <div className={`grid size-14 place-items-center rounded-lg ${tones[tone]}`}>{icon}</div>
+        <div>
+          <p className="text-xs font-bold text-slate-500">{label}</p>
+          <p className="mt-1 text-2xl font-bold">{value}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">{detail}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DimensionSummaryCard({
+  item,
+}: {
+  item: {
+    label: string;
+    better: string;
+    rule: string;
+    ai: string;
+    balance: string;
+    diff: string;
+    tone: "green" | "red" | "orange";
+  };
+}) {
+  const toneClass = {
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    red: "border-rose-200 bg-rose-50 text-rose-700",
+    orange: "border-orange-200 bg-orange-50 text-orange-700",
+  }[item.tone];
+
+  return (
+    <div className={`rounded-xl border p-4 ${toneClass}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold">{item.label}</p>
+          <p className="mt-1 text-xs font-semibold opacity-80">{item.rule}</p>
+        </div>
+        <span className="rounded-md bg-white/70 px-2 py-1 text-xs font-bold">{item.better}</span>
+      </div>
+      <div className="mt-4 space-y-2 text-xs font-semibold">
+        <div className="flex justify-between gap-3">
+          <span>AI</span>
+          <span className="font-mono">{item.ai}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span>Balance</span>
+          <span className="font-mono">{item.balance}</span>
+        </div>
+      </div>
+      <div className="mt-4 rounded-lg bg-white/70 px-3 py-2 text-right font-mono text-lg font-bold">
+        {item.diff}
+      </div>
+    </div>
+  );
+}
+
+function ProfitIndexCard({
+  label,
+  value,
+  vdp,
+  lossRate,
+  active,
+}: {
+  label: string;
+  value: number;
+  vdp: number;
+  lossRate: number;
+  active: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-xl border p-4 shadow-sm ${
+        active ? "border-emerald-200 bg-emerald-50" : "border-[#e3e8f0] bg-white/90"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-bold">{label}</p>
+        {active ? <span className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-bold text-white">ดีกว่า</span> : null}
+      </div>
+      <p className="mt-2 text-2xl font-bold">{value.toFixed(1)}%</p>
+      <p className="mt-1 text-xs font-semibold text-slate-500">
+        %VDP {vdp.toFixed(1)}% - อัตราของขาด/เหลือ {lossRate.toFixed(1)}%
+      </p>
+    </div>
+  );
+}
+
+void ProfitIndexCard;
+
+function AnalyzeCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0 overflow-hidden rounded-xl border border-[#e3e8f0] bg-white/90 p-5 shadow-sm">
+      <h3 className="mb-4 text-lg font-bold">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function AnalyzeBarRow({ item }: { item: AnalyzeSummary }) {
+  const max = Math.max(Math.abs(item.plan), Math.abs(item.ai), 1);
+  return (
+    <div className="grid gap-2 rounded-lg border border-[#edf1f6] p-3">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-bold">{item.name}</span>
+        <span className={item.diff >= 0 ? "font-mono text-emerald-600" : "font-mono text-red-600"}>
+          {formatSigned(item.diff)}
+        </span>
+      </div>
+      <div className="grid gap-1">
+        <div className="h-3 rounded-full bg-slate-100">
+          <div className="h-3 rounded-full bg-slate-400" style={{ width: `${Math.min(100, Math.abs(item.plan / max) * 100)}%` }} />
+        </div>
+        <div className="h-3 rounded-full bg-blue-50">
+          <div className="h-3 rounded-full bg-blue-500" style={{ width: `${Math.min(100, Math.abs(item.ai / max) * 100)}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VdpFactoryBars({ item }: { item: VdpSummary }) {
+  return (
+    <div className="flex w-24 shrink-0 flex-col items-center gap-2">
+      <div className="flex h-56 items-end gap-2">
+        <div className="relative w-8 rounded-t-md bg-blue-500" style={{ height: `${Math.max(8, item.aiVdp * 2)}px` }}>
+          <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-blue-700">{item.aiVdp.toFixed(1)}%</span>
+        </div>
+        <div className="relative w-8 rounded-t-md bg-emerald-500" style={{ height: `${Math.max(8, item.balanceVdp * 2)}px` }}>
+          <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-700">{item.balanceVdp.toFixed(1)}%</span>
+        </div>
+      </div>
+      <span className="line-clamp-2 min-h-10 text-center text-xs font-bold text-slate-600">{item.name}</span>
+    </div>
+  );
+}
+
+function SupplyCompareBars({
+  label,
+  aiValue,
+  balanceValue,
+  unit,
+  betterText,
+  lowerIsBetter = false,
+}: {
+  label: string;
+  aiValue: number;
+  balanceValue: number;
+  unit: string;
+  betterText: string;
+  lowerIsBetter?: boolean;
+}) {
+  const max = Math.max(Math.abs(aiValue), Math.abs(balanceValue), 1);
+  const diff = aiValue - balanceValue;
+  const aiBetter = lowerIsBetter ? aiValue <= balanceValue : aiValue >= balanceValue;
+
+  return (
+    <div className="rounded-lg border border-[#edf1f6] p-4">
+      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-bold">{label}</p>
+          <p className="text-xs font-semibold text-slate-500">{betterText}</p>
+        </div>
+        <span className={`text-sm font-bold ${diff >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+          ต่างกัน {formatSigned(diff)} {unit}
+        </span>
+      </div>
+      <div className="grid gap-3">
+        <CompareBar
+          label="AI Balance"
+          value={aiValue}
+          max={max}
+          unit={unit}
+          color="bg-blue-500"
+          active={aiBetter && lowerIsBetter}
+        />
+        <CompareBar
+          label="Balance Plan"
+          value={balanceValue}
+          max={max}
+          unit={unit}
+          color="bg-emerald-500"
+          active={!aiBetter && lowerIsBetter}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CompareBar({
+  label,
+  value,
+  max,
+  unit,
+  color,
+  active,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  unit: string;
+  color: string;
+  active: boolean;
+}) {
+  return (
+    <div className="grid gap-1">
+      <div className="flex items-center justify-between gap-3 text-xs font-bold text-slate-600">
+        <span>{label}</span>
+        <span className="font-mono">
+          {formatCompact(value)} {unit}
+          {active ? " · ดีกว่า" : ""}
+        </span>
+      </div>
+      <div className="h-4 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(3, Math.min(100, (Math.abs(value) / max) * 100))}%` }} />
+      </div>
+    </div>
+  );
+}
+
+void WaterfallBar;
+
+function WaterfallBar({ label, value, tone }: { label: string; value: number; tone: "slate" | "green" | "red" | "orange" | "blue" }) {
+  const colors = {
+    slate: "bg-slate-400 text-slate-700",
+    green: "bg-emerald-500 text-emerald-700",
+    red: "bg-red-500 text-red-700",
+    orange: "bg-orange-400 text-orange-700",
+    blue: "bg-blue-500 text-blue-700",
+  };
+  const height = Math.max(24, Math.min(230, Math.abs(value) / 120));
+
+  return (
+    <div className="flex min-w-20 flex-1 flex-col items-center gap-2">
+      <span className={`text-xs font-bold ${colors[tone].split(" ")[1]}`}>{formatSigned(value)}</span>
+      <div className={`w-full max-w-16 rounded-t-md ${colors[tone].split(" ")[0]}`} style={{ height: `${height}px` }} />
+      <span className="line-clamp-2 min-h-9 text-center text-xs font-semibold text-slate-500">{label}</span>
+    </div>
+  );
+}
+
+function AnalyzeMoney({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="font-bold text-slate-600">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-emerald-600">{value}</p>
+    </div>
+  );
+}
+
+function MetricLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-[#edf1f6] pb-2">
+      <span className="font-bold text-slate-500">{label}</span>
+      <span className="font-mono font-bold">{value}</span>
+    </div>
+  );
+}
+
+function Insight({ tone, icon, text }: { tone: "green" | "yellow" | "red"; icon: ReactNode; text: string }) {
+  const tones = {
+    green: "border-emerald-100 bg-emerald-50 text-emerald-700",
+    yellow: "border-amber-100 bg-amber-50 text-amber-700",
+    red: "border-rose-100 bg-rose-50 text-rose-700",
+  };
+
+  return (
+    <div className={`flex items-start gap-3 rounded-lg border p-3 font-semibold ${tones[tone]}`}>
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+
 function BalanceComparison({
   data,
   feedback,
@@ -1922,8 +3161,10 @@ function BalanceComparison({
   const [factoryFilters, setFactoryFilters] = useState<string[]>([]);
   const [weekFilters, setWeekFilters] = useState<string[]>([]);
   const [groupFilters, setGroupFilters] = useState<string[]>([]);
-  const [metricFilters, setMetricFilters] = useState<string[]>([]);
-  const [statusFilters, setStatusFilters] = useState<string[]>(["ต่างปานกลาง", "ต่างกันมาก"]);
+  const [factoryMetricFilters, setFactoryMetricFilters] = useState<string[]>([]);
+  const [productMetricFilters, setProductMetricFilters] = useState<string[]>([]);
+  const [factoryStatusFilters, setFactoryStatusFilters] = useState<string[]>(["ต่างปานกลาง", "ต่างกันมาก"]);
+  const [productStatusFilters, setProductStatusFilters] = useState<string[]>(["ต่างปานกลาง", "ต่างกันมาก"]);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const factories = useMemo(
     () => Array.from(new Set(rows.map((row) => row.factory))).sort((a, b) => a.localeCompare(b, "th")),
@@ -1935,13 +3176,23 @@ function BalanceComparison({
   );
   const groups = useMemo(
     () =>
-      Array.from(new Set(rows.map((row) => row.productGroup))).sort((a, b) =>
+      Array.from(new Set(rows.map((row) => row.productGroup).filter(Boolean))).sort((a, b) =>
         a.localeCompare(b, "th"),
       ),
     [rows],
   );
-  const metrics = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.metric))).sort((a, b) => a.localeCompare(b, "th")),
+  const factoryMetrics = useMemo(
+    () =>
+      Array.from(new Set(rows.filter((row) => row.tableType === "factory").map((row) => row.metric))).sort((a, b) =>
+        a.localeCompare(b, "th"),
+      ),
+    [rows],
+  );
+  const productMetrics = useMemo(
+    () =>
+      Array.from(
+        new Set(rows.filter((row) => row.tableType === "product-group").map((row) => row.metric)),
+      ).sort((a, b) => a.localeCompare(b, "th")),
     [rows],
   );
   const activeWeekFilters =
@@ -1958,16 +3209,32 @@ function BalanceComparison({
     return Math.max(0, Math.round((1 - errorRate) * 100));
   }
 
-  const filteredRows = rows.filter((row) => {
-    const status = scoreLabel(balanceScore(row.aiValue, row.balanceValue));
-    return (
+  const commonFilteredRows = rows.filter(
+    (row) =>
       (factoryFilters.length === 0 || factoryFilters.includes(row.factory)) &&
-      (activeWeekFilters.length === 0 || activeWeekFilters.includes(row.week)) &&
-      (groupFilters.length === 0 || groupFilters.includes(row.productGroup)) &&
-      (metricFilters.length === 0 || metricFilters.includes(row.metric)) &&
-      (statusFilters.length === 0 || statusFilters.includes(status))
-    );
-  });
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(row.week)),
+  );
+  const factoryRows = commonFilteredRows.filter(
+    (row) => {
+      const status = scoreLabel(balanceScore(row.aiValue, row.balanceValue));
+      return (
+        row.tableType === "factory" &&
+        (factoryMetricFilters.length === 0 || factoryMetricFilters.includes(row.metric)) &&
+        (factoryStatusFilters.length === 0 || factoryStatusFilters.includes(status))
+      );
+    },
+  );
+  const productRows = dedupeBalanceRows(
+    commonFilteredRows.filter((row) => {
+      const status = scoreLabel(balanceScore(row.aiValue, row.balanceValue));
+      return (
+        row.tableType === "product-group" &&
+        (groupFilters.length === 0 || groupFilters.includes(row.productGroup)) &&
+        (productMetricFilters.length === 0 || productMetricFilters.includes(row.metric)) &&
+        (productStatusFilters.length === 0 || productStatusFilters.includes(status))
+      );
+    }),
+  );
 
   function saveBalanceFeedback() {
     window.localStorage.setItem(storageKey, JSON.stringify(feedback));
@@ -1989,49 +3256,149 @@ function BalanceComparison({
           </p>
         </div>
         <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
-          {filteredRows.length.toLocaleString("th-TH")} รายการ
+          {(factoryRows.length + productRows.length).toLocaleString("th-TH")} รายการ
         </span>
       </div>
 
-      <div className="mb-4 grid gap-3 xl:grid-cols-5">
+      <div className="mb-4 grid gap-3 xl:grid-cols-2">
         <TransferFilterBox label="สัปดาห์" options={weeks} values={activeWeekFilters} onChange={setWeekFilters} />
         <TransferFilterBox label="โรงงาน" options={factories} values={factoryFilters} onChange={setFactoryFilters} />
-        <TransferFilterBox label="กลุ่มสินค้า" options={groups} values={groupFilters} onChange={setGroupFilters} />
-        <TransferFilterBox label="ตัวชี้วัด" options={metrics} values={metricFilters} onChange={setMetricFilters} />
-        <TransferFilterBox
-          label="สถานะ"
-          options={["ดี", "ต่างปานกลาง", "ต่างกันมาก", "รอข้อมูล"]}
-          values={statusFilters}
-          onChange={setStatusFilters}
+      </div>
+
+      <div className="space-y-5">
+        <BalanceComparisonTable
+          title="เทียบรายโรงงาน"
+          description="ใช้ชีท 1. ปริมาณตัดแต่ง จากไฟล์ AI เทียบกับคอลัมน์จำนวนตัดแต่งใน Balance ตามรายชื่อโรงงาน"
+          rows={factoryRows}
+          feedback={feedback}
+          updateFeedback={updateFeedback}
+          showProductGroup={false}
+          filters={
+            <>
+              <TransferFilterBox
+                label="ตัวแปร"
+                options={factoryMetrics}
+                values={factoryMetricFilters}
+                onChange={setFactoryMetricFilters}
+              />
+              <TransferFilterBox
+                label="สถานะ"
+                options={["ดี", "ต่างปานกลาง", "ต่างกันมาก", "รอข้อมูล"]}
+                values={factoryStatusFilters}
+                onChange={setFactoryStatusFilters}
+              />
+            </>
+          }
+        />
+        <BalanceComparisonTable
+          title="เทียบรายกลุ่มชิ้นส่วน"
+          description="ใช้ชีท 2. ปริมาณ Supply และ 3. FC,QT จากไฟล์ AI เทียบตาม ProductForPlan19 / กลุ่มชิ้นส่วน"
+          rows={productRows}
+          feedback={feedback}
+          updateFeedback={updateFeedback}
+          showProductGroup
+          filters={
+            <>
+              <TransferFilterBox
+                label="กลุ่มชิ้นส่วน"
+                options={groups}
+                values={groupFilters}
+                onChange={setGroupFilters}
+              />
+              <TransferFilterBox
+                label="ตัวแปร"
+                options={productMetrics}
+                values={productMetricFilters}
+                onChange={setProductMetricFilters}
+              />
+              <TransferFilterBox
+                label="สถานะ"
+                options={["ดี", "ต่างปานกลาง", "ต่างกันมาก", "รอข้อมูล"]}
+                values={productStatusFilters}
+                onChange={setProductStatusFilters}
+              />
+            </>
+          }
         />
       </div>
 
+      <div className="mt-4 flex flex-col gap-2 border-t border-[#f5b4cf] pt-4 sm:flex-row sm:items-center sm:justify-end">
+        <button
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#ef3e8f] px-5 text-sm font-bold text-white shadow-sm hover:bg-[#dc2e81]"
+          type="button"
+          onClick={saveBalanceFeedback}
+        >
+          <Save size={18} />
+          บันทึกความเห็น
+        </button>
+        {savedAt ? <p className="text-xs font-bold text-emerald-600">บันทึกแล้ว {savedAt}</p> : null}
+      </div>
+    </section>
+  );
+}
+
+function BalanceComparisonTable({
+  title,
+  description,
+  rows,
+  feedback,
+  updateFeedback,
+  showProductGroup,
+  filters,
+}: {
+  title: string;
+  description: string;
+  rows: BalanceRecord[];
+  feedback: Record<string, Feedback>;
+  updateFeedback: (id: string, patch: Partial<Feedback>) => void;
+  showProductGroup: boolean;
+  filters?: ReactNode;
+}) {
+  function balanceScore(aiValue: number | null, balanceValue: number | null) {
+    if (aiValue === null || balanceValue === null) return null;
+    const denominator = Math.max(Math.abs(balanceValue), 1);
+    const errorRate = Math.abs(aiValue - balanceValue) / denominator;
+    return Math.max(0, Math.round((1 - errorRate) * 100));
+  }
+
+  return (
+    <div className="rounded-xl border border-[#f5b4cf] bg-white/85 p-4">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-lg font-bold">{title}</h3>
+          <p className="text-sm text-slate-500">{description}</p>
+        </div>
+        <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
+          {rows.length.toLocaleString("th-TH")} รายการ
+        </span>
+      </div>
+
+      {filters ? <div className="mb-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filters}</div> : null}
+
       <div className="mobile-table-frame min-w-0 rounded-lg border border-[#dfe6ef]">
-        <div className="mobile-table-scroll max-h-[680px] overflow-auto">
+        <div className="mobile-table-scroll max-h-[560px] overflow-auto">
           <table className="balance-table w-full min-w-[1280px] border-collapse text-sm">
             <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
               <tr>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">โรงงาน</th>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">สัปดาห์</th>
-                <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">กลุ่มสินค้า</th>
+                {showProductGroup ? (
+                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">กลุ่มชิ้นส่วน</th>
+                ) : null}
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ตัวชี้วัด Balance</th>
-                <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ตัวชี้วัด AI</th>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">AI</th>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">Balance</th>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">ต่างกัน</th>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">สถานะ</th>
-                <th className="px-4 py-3">ความคิดเห็น</th>
+                <th className="px-4 py-3 text-left">ความคิดเห็น</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => {
+              {rows.map((row) => {
                 const feedbackId = `balance|${row.id}`;
                 const itemFeedback = feedback[feedbackId] ?? { actual: "", accuracy: "", comment: "" };
                 const matchScore = balanceScore(row.aiValue, row.balanceValue);
-                const diff =
-                  row.aiValue === null || row.balanceValue === null
-                    ? null
-                    : row.balanceValue - row.aiValue;
+                const diff = row.aiValue === null || row.balanceValue === null ? null : row.balanceValue - row.aiValue;
                 const commentRequired = matchScore !== null && matchScore < 80;
                 const missingRequiredComment = commentRequired && !itemFeedback.comment.trim();
 
@@ -2039,11 +3406,16 @@ function BalanceComparison({
                   <tr key={row.id} className="border-t border-[#e8edf4]">
                     <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">{row.factory}</td>
                     <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">{row.week}</td>
-                    <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">{row.productGroup}</td>
-                    <td className="border-r border-[#e8edf4] px-4 py-3">{row.metric}</td>
-                    <td className="border-r border-[#e8edf4] px-4 py-3">{row.aiMetric}</td>
-                    <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">{formatNumber(row.aiValue)}</td>
-                    <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">{formatNumber(row.balanceValue)}</td>
+                    {showProductGroup ? (
+                      <td className="border-r border-[#e8edf4] px-4 py-3 font-medium">{row.productGroup}</td>
+                    ) : null}
+                    <td className="border-r border-[#e8edf4] px-4 py-3">{formatBalanceMetric(row.metric)}</td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">
+                      {formatNumber(row.aiValue)}
+                    </td>
+                    <td className="border-r border-[#e8edf4] px-4 py-3 text-right font-mono">
+                      {formatNumber(row.balanceValue)}
+                    </td>
                     <td
                       className={`border-r border-[#e8edf4] px-4 py-3 text-right font-mono ${
                         diff !== null && diff > 0 ? "text-red-600" : "text-emerald-600"
@@ -2066,7 +3438,7 @@ function BalanceComparison({
                           className={`h-9 w-full rounded-md border px-3 pr-9 text-sm outline-none ${
                             missingRequiredComment
                               ? "border-red-400 bg-red-50 focus:border-red-500"
-                              : "border-[#dfe6ef] focus:border-[#ef4b98]"
+                              : "border-[#dfe6ef] focus:border-[#ef3e8f]"
                           }`}
                           placeholder="กรอกความคิดเห็น..."
                           value={itemFeedback.comment}
@@ -2082,24 +3454,51 @@ function BalanceComparison({
                   </tr>
                 );
               })}
+              {rows.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={showProductGroup ? 9 : 8}>
+                    ไม่พบข้อมูลตามตัวกรอง
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
       </div>
-
-      <div className="mt-4 flex flex-col gap-2 border-t border-[#f5b4cf] pt-4 sm:flex-row sm:items-center sm:justify-end">
-        <button
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#ef3e8f] px-5 text-sm font-bold text-white shadow-sm hover:bg-[#dc2e81]"
-          type="button"
-          onClick={saveBalanceFeedback}
-        >
-          <Save size={18} />
-          บันทึกความเห็น
-        </button>
-        {savedAt ? <p className="text-xs font-bold text-emerald-600">บันทึกแล้ว {savedAt}</p> : null}
-      </div>
-    </section>
+    </div>
   );
+}
+
+function dedupeBalanceRows(rows: BalanceRecord[]) {
+  const preferredRows = new Map<string, BalanceRecord>();
+
+  rows.forEach((row) => {
+    const key = [row.tableType, row.factory, row.week, row.productGroup, row.metric].join("|");
+    const current = preferredRows.get(key);
+
+    if (!current || balanceRowPriority(row) > balanceRowPriority(current)) {
+      preferredRows.set(key, row);
+    }
+  });
+
+  return Array.from(preferredRows.values());
+}
+
+function formatBalanceMetric(metric: string) {
+  return /\((kg|head|%|ตัว\/สัปดาห์)\)/i.test(metric) || metric.includes("%") ? metric : `${metric} (Kg)`;
+}
+
+function balanceRowPriority(row: BalanceRecord) {
+  const metric = row.metric.toLowerCase();
+  const isFcQtMetric =
+    metric.includes("fc") ||
+    metric.includes("qt") ||
+    metric.includes("ขาด") ||
+    metric.includes("เหลือ");
+
+  if (isFcQtMetric && row.sourceSheet.includes("3.")) return 3;
+  if (!isFcQtMetric && row.sourceSheet.includes("2.")) return 2;
+  return 1;
 }
 
 function TransferComparison({
@@ -2250,15 +3649,12 @@ function TransferComparison({
 
         <div className="mobile-table-frame rounded-lg border border-[#dfe6ef]">
           <div className="mobile-table-scroll max-h-[680px] overflow-auto">
-            <table className="transfer-table w-full min-w-[1360px] border-collapse text-sm">
+            <table className="transfer-table w-full min-w-[1080px] border-collapse text-sm">
               <colgroup>
                 <col />
                 <col />
                 <col />
                 <col className="w-48" />
-                <col />
-                <col />
-                <col />
                 <col />
                 <col />
                 <col />
@@ -2275,9 +3671,6 @@ function TransferComparison({
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">Actual โอน (kg)</th>
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">ต่างกัน (kg)</th>
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">สถานะ</th>
-                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">รถ 4W</th>
-                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">รถ 6W</th>
-                  <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">รถ 10W</th>
                   <th className="px-4 py-3">ความคิดเห็น</th>
                 </tr>
               </thead>
@@ -2339,15 +3732,6 @@ function TransferComparison({
                         >
                           {scoreLabel(matchScore)}
                         </span>
-                      </td>
-                      <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
-                        {formatNumber(record.fourWheel)}
-                      </td>
-                      <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
-                        {formatNumber(record.sixWheel)}
-                      </td>
-                      <td className="border-r border-[#e8edf4] px-4 py-3 text-center font-mono">
-                        {formatNumber(record.tenWheel)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="relative">
@@ -2457,15 +3841,19 @@ function UploadAiPanel({
   isUploading,
   status,
   uploadedNames,
+  uploadHistory,
   onUpload,
   onActualUpload,
+  onBalanceUpload,
 }: {
   data: AiData | null;
   isUploading: boolean;
   status: { tone: "success" | "error"; message: string } | null;
-  uploadedNames: { ai?: string; actual?: string };
+  uploadedNames: { ai?: string; actual?: string; balance?: string };
+  uploadHistory: UploadHistoryItem[];
   onUpload: (file: File) => Promise<void>;
   onActualUpload: (file: File) => Promise<void>;
+  onBalanceUpload: (file: File) => Promise<void>;
 }) {
   const sheets = Array.from(new Set(data?.records.map((record) => record.sheet) ?? []));
   const factories = Array.from(new Set(data?.records.map((record) => record.factory) ?? []));
@@ -2474,7 +3862,7 @@ function UploadAiPanel({
   return (
     <section className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
       <Panel title="นำเข้าไฟล์เพื่อเปรียบเทียบ">
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-5 xl:grid-cols-3">
           <UploadBox
             title="1. ไฟล์ผลลัพธ์ AI"
             description="ไฟล์ sigmas หรือไฟล์ผล AI ไม่จำเป็นต้องมีสีเหลืองแล้ว แต่หัวคอลัมน์ต้องตรงกับหัวข้อ feedback ที่ระบบจำไว้"
@@ -2490,6 +3878,14 @@ function UploadAiPanel({
             fileName={uploadedNames.actual}
             disabled={isUploading || !data?.records.length}
             onUpload={onActualUpload}
+          />
+          <UploadBox
+            title="3. ไฟล์แผน Balance"
+            description="อัปโหลดไฟล์แผน Balance สำหรับใช้เทียบผลเชิง Business กับผลลัพธ์ AI และใช้เป็นฐานของแท็บวิเคราะห์ผล"
+            buttonLabel={isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์ Balance"}
+            fileName={uploadedNames.balance}
+            disabled={isUploading}
+            onUpload={onBalanceUpload}
           />
         </div>
 
@@ -2531,6 +3927,29 @@ function UploadAiPanel({
           />
           <InfoRow icon={<Factory size={22} />} label="จำนวนโรงงาน" value={`${factories.length}`} />
           <InfoRow icon={<BarChart3 size={22} />} label="จำนวนชีต" value={`${sheets.length}`} />
+        </Panel>
+        <Panel title="ประวัติการอัปโหลดไฟล์">
+          <div className="max-h-[280px] space-y-2 overflow-auto pr-1">
+            {uploadHistory.map((item, index) => (
+              <div
+                key={`${item.type}-${item.name}-${index}`}
+                className="rounded-lg border border-[#f5b4cf] bg-white/80 px-3 py-2 text-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="rounded-md bg-[#ffe8f1] px-2 py-1 text-xs font-bold text-[#ef3e8f]">
+                    {item.type}
+                  </span>
+                  <span className="text-xs text-slate-500">{item.uploadedAt}</span>
+                </div>
+                <p className="mt-2 truncate font-bold text-slate-700">{item.name}</p>
+              </div>
+            ))}
+            {uploadHistory.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-[#dfe6ef] p-4 text-center text-sm text-slate-500">
+                ยังไม่มีประวัติการอัปโหลด
+              </div>
+            ) : null}
+          </div>
         </Panel>
         <Panel title="หัวข้อ Feedback ที่ระบบจำไว้">
           <div className="max-h-[360px] space-y-2 overflow-auto pr-1">
