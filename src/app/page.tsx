@@ -323,6 +323,13 @@ function firstHeaderIndex(headers: string[], names: string[]) {
   return 0;
 }
 
+function uploadKindFromName(fileName: string): UploadHistoryItem["type"] | null {
+  const lower = fileName.toLowerCase();
+  if (lower.includes("actual")) return "Actual";
+  if (lower.includes("balance")) return "Balance";
+  return null;
+}
+
 function sheetFamily(sheetName: string) {
   if (sheetName.includes("ปริมาณตัดแต่ง")) return "1. ปริมาณตัดแต่ง";
   if (sheetName.includes("ปริมาณ Supply")) return "2. ปริมาณ Supply";
@@ -848,7 +855,7 @@ async function parseBalanceComparisonWorkbook(aiFile: File, balanceFile: File): 
 
   const balanceWorksheet =
     balanceWorkbook.worksheets.find((worksheet) => worksheet.name.includes("Balance")) ?? balanceWorkbook.worksheets[0];
-  if (!balanceWorksheet) throw new Error("ไม่พบชีท Balance ในไฟล์ Balance ที่อัปโหลด");
+  if (!balanceWorksheet) throw new Error("ไม่พบชีท Balance ในไฟล์แผนที่อัปโหลด");
 
   const balanceFactoryValues = new Map<string, { value: number; sourceSheet: string }>();
   const balanceProductValues = new Map<string, { value: number; sourceSheet: string }>();
@@ -858,7 +865,7 @@ async function parseBalanceComparisonWorkbook(aiFile: File, balanceFile: File): 
   const balanceProductGroupCol = firstHeaderIndex(balanceHeaders, ["กลุ่มสินค้า", "ProductForPlan19"]);
 
   if (!balanceFactoryCol || !balanceWeekCol) {
-    throw new Error("ไฟล์ Balance ไม่มีคอลัมน์ โรงงาน หรือ Forecast สัปดาห์ที่");
+    throw new Error("ไฟล์แผนไม่มีคอลัมน์ โรงงาน หรือ Forecast สัปดาห์ที่");
   }
 
   for (const metric of Object.keys(balanceFactoryMetricMap)) {
@@ -938,13 +945,141 @@ async function parseBalanceComparisonWorkbook(aiFile: File, balanceFile: File): 
   );
 
   if (records.length === 0) {
-    throw new Error("ยังจับคู่ข้อมูล AI กับ Balance ไม่ได้ กรุณาตรวจหัวคอลัมน์และเลขสัปดาห์ในสองไฟล์");
+    throw new Error("ยังจับคู่ข้อมูล AI กับแผนไม่ได้ กรุณาตรวจหัวคอลัมน์และเลขสัปดาห์ในสองไฟล์");
   }
 
   return {
     sourceFile: balanceFile.name,
     aiFile: aiFile.name,
     mapFile: "browser upload mapping",
+    generatedAt: new Date().toISOString(),
+    records,
+  };
+}
+
+async function parseBalanceComparisonFromAiData(aiData: AiData, balanceFile: File): Promise<BalanceData> {
+  const ExcelJS = await import("exceljs");
+  const balanceWorkbook = new ExcelJS.Workbook() as unknown as WorkbookLike;
+  await balanceWorkbook.xlsx.load(await balanceFile.arrayBuffer());
+
+  const balanceWorksheet =
+    balanceWorkbook.worksheets.find((worksheet) => worksheet.name.includes("Balance")) ?? balanceWorkbook.worksheets[0];
+  if (!balanceWorksheet) throw new Error("ไม่พบชีท Balance ในไฟล์แผนที่อัปโหลด");
+
+  const headers = headersFromWorksheet(balanceWorksheet);
+  const factoryCol = firstHeaderIndex(headers, ["โรงงาน"]);
+  const weekCol = firstHeaderIndex(headers, ["Forecast สัปดาห์ที่", "weekNo", "Weekno"]);
+  const productGroupCol = firstHeaderIndex(headers, ["กลุ่มสินค้า", "ProductForPlan19"]);
+  if (!factoryCol || !weekCol) throw new Error("ไฟล์แผนไม่มีคอลัมน์ โรงงาน หรือ Forecast สัปดาห์ที่");
+
+  const balanceValues = new Map<string, { value: number; sourceSheet: string }>();
+  const metricNames = [...Object.keys(balanceFactoryMetricMap), ...Object.keys(balanceProductMetricMap)];
+
+  for (const metric of metricNames) {
+    const metricCol = headerIndex(headers, metric);
+    if (!metricCol) continue;
+
+    balanceWorksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const factory = cellText(row.getCell(factoryCol).value).trim() || "ไม่ระบุโรงงาน";
+      const week = cellText(row.getCell(weekCol).value).trim();
+      const value = numericValue(row.getCell(metricCol).value);
+      if (!week || value === null) return;
+
+      const tableType: BalanceRecord["tableType"] = metric in balanceFactoryMetricMap ? "factory" : "product-group";
+      const productGroup =
+        tableType === "product-group" && productGroupCol
+          ? cellText(row.getCell(productGroupCol).value).trim() || "รวมทุกกลุ่มสินค้า"
+          : "";
+      const key = balanceKey(tableType, factory, week, productGroup, metric);
+      const current = balanceValues.get(key) ?? { value: 0, sourceSheet: balanceWorksheet.name };
+      current.value += value;
+      balanceValues.set(key, current);
+    });
+  }
+
+  const aiValues = new Map<string, { value: number; sourceSheet: string; aiMetric: string }>();
+
+  for (const record of aiData.records) {
+    if (record.kind !== "number" || record.aiValue === null) continue;
+
+    const factoryMetric = Object.entries(balanceFactoryMetricMap).find(([, aiMetrics]) =>
+      aiMetrics.includes(record.metric),
+    );
+    const productMetric = Object.entries(balanceProductMetricMap).find(([, aiMetrics]) =>
+      aiMetrics.includes(record.metric),
+    );
+    const matchedMetric = factoryMetric?.[0] ?? productMetric?.[0];
+    if (!matchedMetric) continue;
+
+    const tableType: BalanceRecord["tableType"] = factoryMetric ? "factory" : "product-group";
+    const weeks = record.weeks.length > 0 ? record.weeks : [""];
+    for (const week of weeks) {
+      if (!week) continue;
+      if (tableType === "factory") {
+        const key = balanceKey("factory", record.factory, week, "", matchedMetric);
+        aiValues.set(key, {
+          value: (aiValues.get(key)?.value ?? 0) + record.aiValue,
+          sourceSheet: record.sheet,
+          aiMetric: record.metric,
+        });
+        continue;
+      }
+
+      const matchingBalanceKeys = [...balanceValues.keys()].filter((key) => {
+        const [keyType, keyFactory, keyWeek, , keyMetric] = key.split("|");
+        return keyType === "product-group" && keyFactory === record.factory && keyWeek === week && keyMetric === matchedMetric;
+      });
+      const targetKeys =
+        matchingBalanceKeys.length > 0
+          ? matchingBalanceKeys
+          : [balanceKey("product-group", record.factory, week, "รวมทุกกลุ่มสินค้า", matchedMetric)];
+      const splitValue = record.aiValue / targetKeys.length;
+
+      for (const key of targetKeys) {
+        aiValues.set(key, {
+          value: (aiValues.get(key)?.value ?? 0) + splitValue,
+          sourceSheet: record.sheet,
+          aiMetric: record.metric,
+        });
+      }
+    }
+  }
+
+  const records: BalanceRecord[] = [];
+  const allKeys = new Set([...balanceValues.keys(), ...aiValues.keys()]);
+  for (const key of allKeys) {
+    const [tableType, factory, week, productGroup, metric] = key.split("|") as [
+      BalanceRecord["tableType"],
+      string,
+      string,
+      string,
+      string,
+    ];
+    const balance = balanceValues.get(key);
+    const ai = aiValues.get(key);
+    records.push({
+      id: `${key}|fallback`,
+      tableType,
+      sourceSheet: ai?.sourceSheet ?? balance?.sourceSheet ?? "",
+      factory,
+      week,
+      productGroup,
+      metric,
+      aiMetric: ai?.aiMetric ?? "",
+      aiValue: Number((ai?.value ?? 0).toFixed(4)),
+      balanceValue: Number((balance?.value ?? 0).toFixed(4)),
+    });
+  }
+
+  if (records.length === 0) {
+    throw new Error("ยังจับคู่ข้อมูล AI กับแผนไม่ได้ กรุณาตรวจหัวคอลัมน์และเลขสัปดาห์ในสองไฟล์");
+  }
+
+  return {
+    sourceFile: balanceFile.name,
+    aiFile: aiData.sourceFile,
+    mapFile: "browser upload mapping from parsed AI data",
     generatedAt: new Date().toISOString(),
     records,
   };
@@ -1164,16 +1299,28 @@ export default function Home() {
     setUploadHistory((current) => [{ type, name, uploadedAt }, ...current].slice(0, 12));
   }
 
-  async function rebuildBalanceComparison(aiFile: File, balanceFile: File) {
-    const comparison = await parseBalanceComparisonWorkbook(aiFile, balanceFile);
+  async function rebuildBalanceComparison(aiFile: File | null, balanceFile: File, parsedAiData: AiData | null = data) {
+    const comparison = aiFile
+      ? await parseBalanceComparisonWorkbook(aiFile, balanceFile)
+      : parsedAiData
+        ? await parseBalanceComparisonFromAiData(parsedAiData, balanceFile)
+        : null;
+    if (!comparison) {
+      throw new Error("กรุณาอัปโหลดไฟล์ผล AI ก่อน แล้วจึงอัปโหลดไฟล์แผน");
+    }
     setBalanceData(comparison);
     window.localStorage.setItem(uploadedBalanceComparisonKey, JSON.stringify(comparison));
     return comparison;
   }
 
   async function handleAiUpload(file: File) {
-    if (file.name.toLowerCase().includes("actual")) {
+    const detectedKind = uploadKindFromName(file.name);
+    if (detectedKind === "Actual") {
       await handleActualUpload(file);
+      return;
+    }
+    if (detectedKind === "Balance") {
+      await handleBalanceUpload(file);
       return;
     }
 
@@ -1190,14 +1337,14 @@ export default function Home() {
       setFactory("");
       window.localStorage.setItem(uploadedDataKey, JSON.stringify(uploadedData));
       const comparison = balanceWorkbookFile
-        ? await rebuildBalanceComparison(file, balanceWorkbookFile)
+        ? await rebuildBalanceComparison(file, balanceWorkbookFile, uploadedData)
         : null;
       setUploadStatus({
         tone: "success",
         message: comparison
           ? `อัปโหลดสำเร็จ: โหลดผล AI ${uploadedData.records.length.toLocaleString(
               "th-TH",
-            )} รายการ และสร้างผลเทียบ Balance ${comparison.records.length.toLocaleString("th-TH")} รายการ`
+            )} รายการ และสร้างผลเทียบแผน ${comparison.records.length.toLocaleString("th-TH")} รายการ`
           : `อัปโหลดสำเร็จ: โหลด ${uploadedData.records.length.toLocaleString(
           "th-TH",
         )} รายการจากหัวข้อ feedback ที่ระบบจำไว้`,
@@ -1213,6 +1360,12 @@ export default function Home() {
   }
 
   async function handleActualUpload(file: File) {
+    const detectedKind = uploadKindFromName(file.name);
+    if (detectedKind === "Balance") {
+      await handleBalanceUpload(file);
+      return;
+    }
+
     if (!data?.records.length) {
       setUploadStatus({
         tone: "error",
@@ -1265,6 +1418,12 @@ export default function Home() {
   }
 
   async function handleBalanceUpload(file: File) {
+    const detectedKind = uploadKindFromName(file.name);
+    if (detectedKind === "Actual") {
+      await handleActualUpload(file);
+      return;
+    }
+
     setIsUploading(true);
     setUploadStatus(null);
     setBalanceWorkbookFile(file);
@@ -1272,18 +1431,10 @@ export default function Home() {
     recordUpload("Balance", file.name);
 
     try {
-      if (!aiWorkbookFile) {
-        setUploadStatus({
-          tone: "success",
-          message: `เพิ่มไฟล์แผน Balance แล้ว: ${file.name} กรุณาอัปโหลดไฟล์ผล AI อีกครั้งเพื่อสร้างผลวิเคราะห์จากไฟล์ชุดนี้`,
-        });
-        return;
-      }
-
-      const comparison = await rebuildBalanceComparison(aiWorkbookFile, file);
+      const comparison = await rebuildBalanceComparison(aiWorkbookFile, file, data);
       setUploadStatus({
         tone: "success",
-        message: `เพิ่มไฟล์แผน Balance แล้ว: ${file.name} และสร้างผลวิเคราะห์ ${comparison.records.length.toLocaleString(
+        message: `เพิ่มไฟล์แผนแล้ว: ${file.name} และสร้างผลวิเคราะห์ ${comparison.records.length.toLocaleString(
           "th-TH",
         )} รายการ`,
       });
@@ -1291,7 +1442,7 @@ export default function Home() {
     } catch (error) {
       setUploadStatus({
         tone: "error",
-        message: error instanceof Error ? error.message : "ไม่สามารถอ่านไฟล์ Balance ได้",
+        message: error instanceof Error ? error.message : "ไม่สามารถอ่านไฟล์แผนได้",
       });
     } finally {
       setIsUploading(false);
@@ -1317,7 +1468,7 @@ export default function Home() {
                       : activeTab === "analyze"
                         ? "วิเคราะห์ผล"
                       : activeTab === "balance"
-                        ? "เทียบผล AI: Balance"
+                        ? "เทียบผล AI: แผน"
                       : activeTab === "transfer"
                         ? "เทียบผล AI: การโอนสินค้า"
                         : "บันทึก Feedback: เทียบผล AI กับค่าจริง"}
@@ -1325,8 +1476,8 @@ export default function Home() {
                   <p className="mt-1 line-clamp-2 text-sm text-slate-500">
                       {activeTab === "upload"
                         ? "นำเข้าไฟล์ Excel ที่มีโครงสร้างชีตและหัวคอลัมน์แบบเดิม"
-                        : activeTab === "balance"
-                          ? "เทียบผล AI กับไฟล์ Balance ตามโรงงาน สัปดาห์ และกลุ่มสินค้า"
+                      : activeTab === "balance"
+                          ? "เทียบผล AI กับไฟล์แผนตามโรงงาน สัปดาห์ และกลุ่มสินค้า"
                         : activeTab === "transfer"
                           ? "ตรวจว่าต้นทาง ปลายทาง และปริมาณที่ AI แนะนำโอนตรงกับ Actual หรือไม่"
                           : "กรอกและตรวจสอบความถูกต้องของผลลัพธ์ AI เทียบกับค่าจริง"}
@@ -1352,7 +1503,7 @@ export default function Home() {
                 ) : activeTab === "transfer" ? (
                   <TopButton>ชีท 4-5</TopButton>
                 ) : activeTab === "balance" ? (
-                  <TopButton>Balance</TopButton>
+                  <TopButton>แผน</TopButton>
                 ) : null}
                 <TopButton>
                   <HelpCircle size={17} />
@@ -2562,7 +2713,7 @@ function AnalyzeVdpPanel({
   const dimensionSummaries = [
     {
       label: "%VDP",
-      better: vdpDiff >= 0 ? "AI Balance" : "Balance Plan",
+      better: vdpDiff >= 0 ? "AI" : "แผน",
       rule: "ค่าสูงกว่าดีกว่า",
       ai: `${total.aiVdp.toFixed(1)}%`,
       balance: `${total.balanceVdp.toFixed(1)}%`,
@@ -2571,7 +2722,7 @@ function AnalyzeVdpPanel({
     },
     {
       label: "ของขาด",
-      better: shortageDiff <= 0 ? "AI Balance" : "Balance Plan",
+      better: shortageDiff <= 0 ? "AI" : "แผน",
       rule: "ค่าน้อยกว่าดีกว่า",
       ai: `${formatCompact(total.aiShortage)} ตัน`,
       balance: `${formatCompact(total.balanceShortage)} ตัน`,
@@ -2580,7 +2731,7 @@ function AnalyzeVdpPanel({
     },
     {
       label: "ของเหลือ",
-      better: surplusDiff <= 0 ? "AI Balance" : "Balance Plan",
+      better: surplusDiff <= 0 ? "AI" : "แผน",
       rule: "ค่าน้อยกว่าดีกว่า",
       ai: `${formatCompact(total.aiSurplus)} ตัน`,
       balance: `${formatCompact(total.balanceSurplus)} ตัน`,
@@ -2589,7 +2740,7 @@ function AnalyzeVdpPanel({
     },
     {
       label: "Total Supply",
-      better: Math.abs(supplyDiff) <= Math.abs(total.balanceSupply * 0.02) ? "ใกล้เคียงกัน" : supplyDiff >= 0 ? "AI มากกว่า" : "Balance มากกว่า",
+      better: Math.abs(supplyDiff) <= Math.abs(total.balanceSupply * 0.02) ? "ใกล้เคียงกัน" : supplyDiff >= 0 ? "AI มากกว่า" : "แผนมากกว่า",
       rule: "ใช้ดูปริมาณ supply รวม",
       ai: `${formatCompact(total.aiSupply)} ตัน`,
       balance: `${formatCompact(total.balanceSupply)} ตัน`,
@@ -2598,7 +2749,7 @@ function AnalyzeVdpPanel({
     },
     {
       label: "กำไร",
-      better: profitImpact >= 0 ? "AI Balance" : "Balance Plan",
+      better: profitImpact >= 0 ? "AI" : "แผน",
       rule: "ประมาณจากส่วนต่าง %VDP",
       ai: formatCompact(profitImpact),
       balance: "รอข้อมูลราคาขาย/ต้นทุน",
@@ -2633,7 +2784,7 @@ function AnalyzeVdpPanel({
       <div className="rounded-xl border border-[#f5b4cf] bg-white/95 p-5 shadow-sm">
         <div className="mb-4">
           <p className="text-sm font-bold text-[#ef3e8f]">สรุปแยกตามมิติ</p>
-          <h3 className="mt-1 text-2xl font-bold">ดูว่า AI หรือ Balance ดีกว่าในแต่ละด้าน</h3>
+          <h3 className="mt-1 text-2xl font-bold">ดูว่า AI หรือแผนดีกว่าในแต่ละด้าน</h3>
           <p className="mt-2 max-w-4xl text-sm text-slate-600">
             หน้านี้ไม่รวมคะแนนเป็นสูตรเดียว เพื่อให้เห็นชัดว่าฝั่งไหนชนะด้าน %VDP, ของขาด, ของเหลือ, Total Supply และกำไร
           </p>
@@ -2655,8 +2806,8 @@ function AnalyzeVdpPanel({
             </div>
           </div>
           <div className="mt-3 flex justify-center gap-5 text-xs font-bold text-slate-500">
-            <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-blue-500" /> AI Balance</span>
-            <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-emerald-500" /> Balance Plan</span>
+            <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-blue-500" /> AI</span>
+            <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-emerald-500" /> แผน</span>
           </div>
         </AnalyzeCard>
 
@@ -2697,8 +2848,8 @@ function AnalyzeVdpPanel({
                 <thead className="bg-[#f8fafc] text-xs text-slate-500">
                   <tr>
                     <th className="px-3 py-2 text-left">KPI</th>
-                    <th className="px-3 py-2 text-right">AI Balance</th>
-                    <th className="px-3 py-2 text-right">Balance Plan</th>
+                    <th className="px-3 py-2 text-right">AI</th>
+                    <th className="px-3 py-2 text-right">แผน</th>
                     <th className="px-3 py-2 text-right">Difference</th>
                     <th className="px-3 py-2 text-right">%Diff</th>
                   </tr>
@@ -2738,7 +2889,7 @@ function AnalyzeVdpPanel({
                   <tr>
                     <th className="px-3 py-2 text-left">สินค้า/ชิ้นส่วน</th>
                     <th className="px-3 py-2 text-right">%VDP AI</th>
-                    <th className="px-3 py-2 text-right">%VDP Balance</th>
+                    <th className="px-3 py-2 text-right">%VDP แผน</th>
                     <th className="px-3 py-2 text-right">ของขาดต่าง</th>
                     <th className="px-3 py-2 text-right">ของเหลือต่าง</th>
                   </tr>
@@ -2759,13 +2910,13 @@ function AnalyzeVdpPanel({
           </div>
         </AnalyzeCard>
 
-        <AnalyzeCard title="Impact จากการใช้ AI Balance">
+        <AnalyzeCard title="Impact จากการใช้ AI">
           <div className="space-y-3">
             <Insight tone={vdpDiff >= 0 ? "green" : "red"} icon={<TrendingUp size={18} />} text={`${vdpDiff >= 0 ? "เพิ่ม" : "ลด"} %VDP ${formatSigned(vdpDiff)}%`} />
             <Insight tone="red" icon={<AlertCircle size={18} />} text={`ของขาดต่างจากแผน ${formatSigned(shortageDiff)} ตัน`} />
             <Insight tone="yellow" icon={<Sparkles size={18} />} text={`ของเหลือต่างจากแผน ${formatSigned(surplusDiff)} ตัน`} />
             <Insight tone="green" icon={<CheckCircle2 size={18} />} text={`ไฟล์ AI: ${uploadedNames.ai ?? data?.aiFile ?? "-"}`} />
-            <Insight tone="yellow" icon={<Database size={18} />} text={`แผน Balance: ${uploadedNames.balance ?? data?.sourceFile ?? "-"}`} />
+            <Insight tone="yellow" icon={<Database size={18} />} text={`ไฟล์แผน: ${uploadedNames.balance ?? data?.sourceFile ?? "-"}`} />
           </div>
         </AnalyzeCard>
       </div>
@@ -2805,9 +2956,9 @@ function AnalyzePanel({
         <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-white/20" />
         <div className="relative flex min-h-40 flex-col justify-between gap-5 p-5 lg:flex-row lg:items-start">
           <div>
-            <h2 className="text-2xl font-bold text-[#172033]">AI vs Balance Plan Overview</h2>
+            <h2 className="text-2xl font-bold text-[#172033]">AI vs แผน Overview</h2>
             <p className="mt-2 max-w-2xl text-sm font-medium text-slate-600">
-              ภาพรวมการเปรียบเทียบผลลัพธ์ AI กับแผน Balance ของโรงงาน เพื่อดูผลกระทบเชิง Business
+              ภาพรวมการเปรียบเทียบผลลัพธ์ AI กับแผนของโรงงาน เพื่อดูผลกระทบเชิง Business
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -2822,7 +2973,7 @@ function AnalyzePanel({
         <AnalyzeKpi icon={<Database size={28} />} label="มูลค่าการผลิตตามแผน (Plan)" value={formatCompact(planTotal)} detail="100% ของแผนทั้งหมด" tone="blue" />
         <AnalyzeKpi icon={<Target size={28} />} label="มูลค่าผลลัพธ์จาก AI" value={formatCompact(aiTotal)} detail={`${formatSigned(diffTotal)} (${formatSigned(diffPercent)}%)`} tone="green" />
         <AnalyzeKpi icon={<TrendingUp size={28} />} label="มูลค่าความแตกต่าง" value={formatSigned(diffTotal)} detail={`${formatSigned(diffPercent)}% เทียบกับแผน`} tone={diffTotal >= 0 ? "orange" : "rose"} />
-        <AnalyzeKpi icon={<Gauge size={28} />} label="ประสิทธิภาพการเทียบผล" value={`${avgAccuracy.toFixed(1)}%`} detail="AI เทียบกับ Balance" tone="teal" />
+        <AnalyzeKpi icon={<Gauge size={28} />} label="ประสิทธิภาพการเทียบผล" value={`${avgAccuracy.toFixed(1)}%`} detail="AI เทียบกับแผน" tone="teal" />
         <AnalyzeKpi icon={<AlertCircle size={28} />} label="รายการต่างกันมาก" value={`${majorDiffs.toLocaleString("th-TH")}`} detail="ต้องตรวจสอบเชิง Business" tone="purple" />
       </div>
 
@@ -2918,7 +3069,7 @@ function AnalyzePanel({
       </div>
 
       <p className="text-right text-xs text-slate-500">
-        AI: {uploadedNames.ai ?? data?.aiFile ?? "-"} | Balance: {uploadedNames.balance ?? data?.sourceFile ?? "-"}
+        AI: {uploadedNames.ai ?? data?.aiFile ?? "-"} | แผน: {uploadedNames.balance ?? data?.sourceFile ?? "-"}
       </p>
     </section>
   );
@@ -3194,7 +3345,7 @@ function DimensionSummaryCard({
           <span className="font-mono">{item.ai}</span>
         </div>
         <div className="flex justify-between gap-3">
-          <span>Balance</span>
+          <span>แผน</span>
           <span className="font-mono">{item.balance}</span>
         </div>
       </div>
@@ -3317,7 +3468,7 @@ function SupplyCompareBars({
       </div>
       <div className="grid gap-3">
         <CompareBar
-          label="AI Balance"
+          label="AI"
           value={aiValue}
           max={max}
           unit={unit}
@@ -3325,7 +3476,7 @@ function SupplyCompareBars({
           active={aiBetter && lowerIsBetter}
         />
         <CompareBar
-          label="Balance Plan"
+          label="แผน"
           value={balanceValue}
           max={max}
           unit={unit}
@@ -3525,9 +3676,9 @@ function BalanceComparison({
     <section className="comparison-card min-w-0 rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-sm">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-xl font-bold">เทียบผล AI กับ Balance</h2>
+          <h2 className="text-xl font-bold">เทียบผล AI กับแผน</h2>
           <p className="mt-1 text-sm text-slate-500">
-            เทียบจากไฟล์ {data?.sourceFile ?? "Balance"} กับ {data?.aiFile ?? "AI"} เฉพาะคอลัมน์ที่จับคู่ได้
+            เทียบจากไฟล์ {data?.sourceFile ?? "แผน"} กับ {data?.aiFile ?? "AI"} เฉพาะคอลัมน์ที่จับคู่ได้
           </p>
         </div>
         <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
@@ -3543,7 +3694,7 @@ function BalanceComparison({
       <div className="space-y-5">
         <BalanceComparisonTable
           title="เทียบรายโรงงาน"
-          description="ใช้ชีท 1. ปริมาณตัดแต่ง จากไฟล์ AI เทียบกับคอลัมน์จำนวนตัดแต่งใน Balance ตามรายชื่อโรงงาน"
+          description="ใช้ชีท 1. ปริมาณตัดแต่ง จากไฟล์ AI เทียบกับคอลัมน์จำนวนตัดแต่งในแผนตามรายชื่อโรงงาน"
           rows={factoryRows}
           feedback={feedback}
           updateFeedback={updateFeedback}
@@ -3660,9 +3811,9 @@ function BalanceComparisonTable({
                 {showProductGroup ? (
                   <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">กลุ่มชิ้นส่วน</th>
                 ) : null}
-                <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ตัวชี้วัด Balance</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-left">ตัวชี้วัดแผน</th>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">AI</th>
-                <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">Balance</th>
+                <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">แผน</th>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-right">ต่างกัน</th>
                 <th className="border-r border-[#e3e8f0] px-4 py-3 text-center">สถานะ</th>
                 <th className="px-4 py-3 text-left">ความคิดเห็น</th>
@@ -4155,9 +4306,9 @@ function UploadAiPanel({
             onUpload={onActualUpload}
           />
           <UploadBox
-            title="3. ไฟล์แผน Balance"
-            description="อัปโหลดไฟล์แผน Balance สำหรับใช้เทียบผลเชิง Business กับผลลัพธ์ AI และใช้เป็นฐานของแท็บวิเคราะห์ผล"
-            buttonLabel={isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์ Balance"}
+            title="3. ไฟล์แผน"
+            description="อัปโหลดไฟล์แผน สำหรับใช้เทียบผลเชิง Business กับผลลัพธ์ AI และใช้เป็นฐานของแท็บวิเคราะห์ผล"
+            buttonLabel={isUploading ? "กำลังอ่านไฟล์..." : "เลือกไฟล์แผน"}
             fileName={uploadedNames.balance}
             disabled={isUploading}
             onUpload={onBalanceUpload}
