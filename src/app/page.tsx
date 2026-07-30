@@ -176,6 +176,7 @@ const storageKey = "ai-feedback-review-v1";
 const uploadedDataKey = "ai-feedback-uploaded-ai-data-v2";
 const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v2";
 const uploadedActualTransferKey = "ai-feedback-uploaded-actual-transfer-v1";
+const uploadedBalanceComparisonKey = "ai-feedback-uploaded-balance-comparison-v1";
 const uploadHistoryKey = "ai-feedback-upload-history-v1";
 const numberFormatter = new Intl.NumberFormat("th-TH", {
   maximumFractionDigits: 2,
@@ -232,6 +233,24 @@ const actualMetricAliases: Record<string, string[]> = {
   "เกิน": ["Shortage_Surplus"],
   "ปริมาณโอนทั้งหมด (kg)": ["Weight"],
   "ปริมาณแนะนำโอน (kg)": ["Weight"],
+};
+
+const balanceFactoryMetricMap: Record<string, string[]> = {
+  "จำนวนหมูทั้งหมด (ตัว/สัปดาห์)": ["จำนวนหมูเข้าตัดแต่ง (head)"],
+  "ตัดแต่งต่อวัน": ["จำนวนหมูเข้าตัดแต่ง (head)"],
+  "น้ำหนักหมู": ["น้ำหนักเฉลี่ยนต่อตัว (kg)"],
+};
+
+const balanceProductMetricMap: Record<string, string[]> = {
+  "Yield FG Adjust": ["% Actual Yield", "% Actual Yield"],
+  "%Yield FG": ["% Actual Yield"],
+  "ผลิต": ["Production (kg)"],
+  "stock": ["Stock ยกมา (kg)"],
+  "รับโอน": ["Transfer in (kg)"],
+  "Total Supply": ["Total Supply (kg)"],
+  "FC Total": ["FC (kg)"],
+  "QT total": ["QT (kg)", "Quota (kg)"],
+  "สินค้าที่ขาด/เหลือจากการบาล้าน": ["ของขาด-เหลือ (kg)", "ขาด", "เกิน"],
 };
 
 const navItems = [
@@ -741,6 +760,214 @@ async function parseActualTransferWorkbook(file: File): Promise<TransferActualPa
   );
 }
 
+async function parseBalanceComparisonWorkbook(aiFile: File, balanceFile: File): Promise<BalanceData> {
+  const ExcelJS = await import("exceljs");
+  const aiWorkbook = new ExcelJS.Workbook() as unknown as WorkbookLike;
+  const balanceWorkbook = new ExcelJS.Workbook() as unknown as WorkbookLike;
+
+  await Promise.all([
+    aiWorkbook.xlsx.load(await aiFile.arrayBuffer()),
+    balanceWorkbook.xlsx.load(await balanceFile.arrayBuffer()),
+  ]);
+
+  const aiFactoryValues = new Map<string, { value: number; sourceSheet: string; aiMetric: string }>();
+  const aiProductValues = new Map<string, { value: number; sourceSheet: string; aiMetric: string }>();
+
+  for (const worksheet of aiWorkbook.worksheets) {
+    const family = sheetFamily(worksheet.name);
+    const headers = headersFromWorksheet(worksheet);
+    const weekCol = headerIndex(headers, "weekNo");
+    const factoryCol = firstHeaderIndex(headers, ["WarehouseForPlan1", "WarehouseForplan1"]);
+    const productGroupCol = firstHeaderIndex(headers, ["ProductForPlan19"]);
+
+    if (!weekCol || !factoryCol) continue;
+
+    if (family === "1. ปริมาณตัดแต่ง") {
+      const dayCol = firstHeaderIndex(headers, ["DayKey"]);
+      const dayKeys = new Map<string, Set<string>>();
+
+      for (const [balanceMetric, aiMetrics] of Object.entries(balanceFactoryMetricMap)) {
+        const metricCol = firstHeaderIndex(headers, aiMetrics);
+        if (!metricCol) continue;
+        const aiMetric = headers[metricCol - 1] || aiMetrics[0];
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const week = cellText(row.getCell(weekCol).value).trim();
+          const factory = cellText(row.getCell(factoryCol).value).trim() || "ไม่ระบุโรงงาน";
+          const value = numericValue(row.getCell(metricCol).value);
+          if (!week || value === null) return;
+
+          const key = balanceKey("factory", factory, week, "", balanceMetric);
+          const current = aiFactoryValues.get(key) ?? { value: 0, sourceSheet: family, aiMetric };
+          current.value += value;
+          aiFactoryValues.set(key, current);
+
+          if (dayCol) {
+            const dayKey = cellText(row.getCell(dayCol).value).trim();
+            if (dayKey) {
+              const daySetKey = [factory, week].join("|");
+              const days = dayKeys.get(daySetKey) ?? new Set<string>();
+              days.add(dayKey);
+              dayKeys.set(daySetKey, days);
+            }
+          }
+        });
+      }
+
+      for (const [key, item] of aiFactoryValues.entries()) {
+        const [tableType, factory, week, , metric] = key.split("|");
+        if (tableType !== "factory" || metric !== "ตัดแต่งต่อวัน") continue;
+        const days = dayKeys.get([factory, week].join("|"))?.size ?? 0;
+        if (days > 0) item.value = item.value / days;
+      }
+    }
+
+    if ((family === "2. ปริมาณ Supply" || family === "3. FC,QT") && productGroupCol) {
+      for (const [balanceMetric, aiMetrics] of Object.entries(balanceProductMetricMap)) {
+        const metricCol = firstHeaderIndex(headers, aiMetrics);
+        if (!metricCol) continue;
+        const aiMetric = headers[metricCol - 1] || aiMetrics[0];
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const week = cellText(row.getCell(weekCol).value).trim();
+          const factory = cellText(row.getCell(factoryCol).value).trim() || "ไม่ระบุโรงงาน";
+          const productGroup = cellText(row.getCell(productGroupCol).value).trim() || "ไม่ระบุกลุ่ม";
+          const value = numericValue(row.getCell(metricCol).value);
+          if (!week || value === null) return;
+
+          const key = balanceKey("product-group", factory, week, productGroup, balanceMetric);
+          const current = aiProductValues.get(key) ?? { value: 0, sourceSheet: family, aiMetric };
+          current.value += value;
+          aiProductValues.set(key, current);
+        });
+      }
+    }
+  }
+
+  const balanceWorksheet =
+    balanceWorkbook.worksheets.find((worksheet) => worksheet.name.includes("Balance")) ?? balanceWorkbook.worksheets[0];
+  if (!balanceWorksheet) throw new Error("ไม่พบชีท Balance ในไฟล์ Balance ที่อัปโหลด");
+
+  const balanceFactoryValues = new Map<string, { value: number; sourceSheet: string }>();
+  const balanceProductValues = new Map<string, { value: number; sourceSheet: string }>();
+  const balanceHeaders = headersFromWorksheet(balanceWorksheet);
+  const balanceFactoryCol = firstHeaderIndex(balanceHeaders, ["โรงงาน"]);
+  const balanceWeekCol = firstHeaderIndex(balanceHeaders, ["Forecast สัปดาห์ที่", "weekNo", "Weekno"]);
+  const balanceProductGroupCol = firstHeaderIndex(balanceHeaders, ["กลุ่มสินค้า", "ProductForPlan19"]);
+
+  if (!balanceFactoryCol || !balanceWeekCol) {
+    throw new Error("ไฟล์ Balance ไม่มีคอลัมน์ โรงงาน หรือ Forecast สัปดาห์ที่");
+  }
+
+  for (const metric of Object.keys(balanceFactoryMetricMap)) {
+    const metricCol = headerIndex(balanceHeaders, metric);
+    if (!metricCol) continue;
+
+    balanceWorksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const factory = cellText(row.getCell(balanceFactoryCol).value).trim() || "ไม่ระบุโรงงาน";
+      const week = cellText(row.getCell(balanceWeekCol).value).trim();
+      const value = numericValue(row.getCell(metricCol).value);
+      if (!week || value === null) return;
+      const key = balanceKey("factory", factory, week, "", metric);
+      const current = balanceFactoryValues.get(key) ?? { value: 0, sourceSheet: balanceWorksheet.name };
+      current.value += value;
+      balanceFactoryValues.set(key, current);
+    });
+  }
+
+  if (balanceProductGroupCol) {
+    for (const metric of Object.keys(balanceProductMetricMap)) {
+      const metricCol = headerIndex(balanceHeaders, metric);
+      if (!metricCol) continue;
+
+      balanceWorksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const factory = cellText(row.getCell(balanceFactoryCol).value).trim() || "ไม่ระบุโรงงาน";
+        const week = cellText(row.getCell(balanceWeekCol).value).trim();
+        const productGroup = cellText(row.getCell(balanceProductGroupCol).value).trim() || "ไม่ระบุกลุ่ม";
+        const value = numericValue(row.getCell(metricCol).value);
+        if (!week || value === null) return;
+        const key = balanceKey("product-group", factory, week, productGroup, metric);
+        const current = balanceProductValues.get(key) ?? { value: 0, sourceSheet: balanceWorksheet.name };
+        current.value += value;
+        balanceProductValues.set(key, current);
+      });
+    }
+  }
+
+  const records: BalanceRecord[] = [];
+  const allKeys = new Set([
+    ...aiFactoryValues.keys(),
+    ...balanceFactoryValues.keys(),
+    ...aiProductValues.keys(),
+    ...balanceProductValues.keys(),
+  ]);
+
+  for (const key of allKeys) {
+    const [tableType, factory, week, productGroup, metric] = key.split("|") as [
+      BalanceRecord["tableType"],
+      string,
+      string,
+      string,
+      string,
+    ];
+    const ai = tableType === "factory" ? aiFactoryValues.get(key) : aiProductValues.get(key);
+    const balance = tableType === "factory" ? balanceFactoryValues.get(key) : balanceProductValues.get(key);
+
+    records.push({
+      id: `${key}|${ai?.sourceSheet ?? balance?.sourceSheet ?? ""}`,
+      tableType,
+      sourceSheet: ai?.sourceSheet ?? balance?.sourceSheet ?? "",
+      factory,
+      week,
+      productGroup,
+      metric,
+      aiMetric: ai?.aiMetric ?? "",
+      aiValue: Number((ai?.value ?? 0).toFixed(4)),
+      balanceValue: Number((balance?.value ?? 0).toFixed(4)),
+    });
+  }
+
+  records.sort((a, b) =>
+    [a.tableType, a.factory, a.week, a.productGroup, a.metric]
+      .join("|")
+      .localeCompare([b.tableType, b.factory, b.week, b.productGroup, b.metric].join("|"), "th"),
+  );
+
+  if (records.length === 0) {
+    throw new Error("ยังจับคู่ข้อมูล AI กับ Balance ไม่ได้ กรุณาตรวจหัวคอลัมน์และเลขสัปดาห์ในสองไฟล์");
+  }
+
+  return {
+    sourceFile: balanceFile.name,
+    aiFile: aiFile.name,
+    mapFile: "browser upload mapping",
+    generatedAt: new Date().toISOString(),
+    records,
+  };
+}
+
+function headersFromWorksheet(worksheet: WorksheetLike) {
+  const headers: string[] = [];
+  worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    headers[colNumber - 1] = cellText(cell.value).trim();
+  });
+  return headers;
+}
+
+function balanceKey(
+  tableType: BalanceRecord["tableType"],
+  factory: string,
+  week: string,
+  productGroup: string,
+  metric: string,
+) {
+  return [tableType, factory, week, productGroup, metric].join("|");
+}
+
 export default function Home() {
   const [data, setData] = useState<AiData | null>(null);
   const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
@@ -754,6 +981,8 @@ export default function Home() {
   ]);
   const [activeTab, setActiveTab] = useState<AppTab>("factoryFeedback");
   const [isUploading, setIsUploading] = useState(false);
+  const [aiWorkbookFile, setAiWorkbookFile] = useState<File | null>(null);
+  const [balanceWorkbookFile, setBalanceWorkbookFile] = useState<File | null>(null);
   const [uploadedNames, setUploadedNames] = useState<{ ai?: string; actual?: string; balance?: string }>({});
   const [uploadStatus, setUploadStatus] = useState<{
     tone: "success" | "error";
@@ -821,6 +1050,12 @@ export default function Home() {
     fetch("/balance-comparison-data.json")
       .then((response) => (response.ok ? response.json() : null))
       .then((comparison: BalanceData | null) => {
+        const uploaded = window.localStorage.getItem(uploadedBalanceComparisonKey);
+        if (uploaded) {
+          setBalanceData(JSON.parse(uploaded) as BalanceData);
+          return;
+        }
+
         if (comparison) setBalanceData(comparison);
       })
       .catch(() => undefined);
@@ -929,6 +1164,13 @@ export default function Home() {
     setUploadHistory((current) => [{ type, name, uploadedAt }, ...current].slice(0, 12));
   }
 
+  async function rebuildBalanceComparison(aiFile: File, balanceFile: File) {
+    const comparison = await parseBalanceComparisonWorkbook(aiFile, balanceFile);
+    setBalanceData(comparison);
+    window.localStorage.setItem(uploadedBalanceComparisonKey, JSON.stringify(comparison));
+    return comparison;
+  }
+
   async function handleAiUpload(file: File) {
     if (file.name.toLowerCase().includes("actual")) {
       await handleActualUpload(file);
@@ -940,15 +1182,23 @@ export default function Home() {
 
     try {
       const uploadedData = await parseAiWorkbook(file);
+      setAiWorkbookFile(file);
       setData(uploadedData);
       setUploadedNames((current) => ({ ...current, ai: file.name }));
       recordUpload("AI", file.name);
       setSheet(allSheets);
       setFactory("");
       window.localStorage.setItem(uploadedDataKey, JSON.stringify(uploadedData));
+      const comparison = balanceWorkbookFile
+        ? await rebuildBalanceComparison(file, balanceWorkbookFile)
+        : null;
       setUploadStatus({
         tone: "success",
-        message: `อัปโหลดสำเร็จ: โหลด ${uploadedData.records.length.toLocaleString(
+        message: comparison
+          ? `อัปโหลดสำเร็จ: โหลดผล AI ${uploadedData.records.length.toLocaleString(
+              "th-TH",
+            )} รายการ และสร้างผลเทียบ Balance ${comparison.records.length.toLocaleString("th-TH")} รายการ`
+          : `อัปโหลดสำเร็จ: โหลด ${uploadedData.records.length.toLocaleString(
           "th-TH",
         )} รายการจากหัวข้อ feedback ที่ระบบจำไว้`,
       });
@@ -1015,12 +1265,37 @@ export default function Home() {
   }
 
   async function handleBalanceUpload(file: File) {
+    setIsUploading(true);
+    setUploadStatus(null);
+    setBalanceWorkbookFile(file);
     setUploadedNames((current) => ({ ...current, balance: file.name }));
     recordUpload("Balance", file.name);
-    setUploadStatus({
-      tone: "success",
-      message: `เพิ่มไฟล์แผน Balance แล้ว: ${file.name}`,
-    });
+
+    try {
+      if (!aiWorkbookFile) {
+        setUploadStatus({
+          tone: "success",
+          message: `เพิ่มไฟล์แผน Balance แล้ว: ${file.name} กรุณาอัปโหลดไฟล์ผล AI อีกครั้งเพื่อสร้างผลวิเคราะห์จากไฟล์ชุดนี้`,
+        });
+        return;
+      }
+
+      const comparison = await rebuildBalanceComparison(aiWorkbookFile, file);
+      setUploadStatus({
+        tone: "success",
+        message: `เพิ่มไฟล์แผน Balance แล้ว: ${file.name} และสร้างผลวิเคราะห์ ${comparison.records.length.toLocaleString(
+          "th-TH",
+        )} รายการ`,
+      });
+      setActiveTab("analyze");
+    } catch (error) {
+      setUploadStatus({
+        tone: "error",
+        message: error instanceof Error ? error.message : "ไม่สามารถอ่านไฟล์ Balance ได้",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   return (
