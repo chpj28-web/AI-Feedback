@@ -1313,6 +1313,11 @@ export default function Home() {
     return comparison;
   }
 
+  function clearPlanComparison() {
+    setBalanceData(null);
+    window.localStorage.removeItem(uploadedBalanceComparisonKey);
+  }
+
   async function handleAiUpload(file: File) {
     const detectedKind = uploadKindFromName(file.name);
     if (detectedKind === "Actual") {
@@ -1339,6 +1344,7 @@ export default function Home() {
       const comparison = balanceWorkbookFile
         ? await rebuildBalanceComparison(file, balanceWorkbookFile, uploadedData)
         : null;
+      if (!comparison) clearPlanComparison();
       setUploadStatus({
         tone: "success",
         message: comparison
@@ -1347,7 +1353,7 @@ export default function Home() {
             )} รายการ และสร้างผลเทียบแผน ${comparison.records.length.toLocaleString("th-TH")} รายการ`
           : `อัปโหลดสำเร็จ: โหลด ${uploadedData.records.length.toLocaleString(
           "th-TH",
-        )} รายการจากหัวข้อ feedback ที่ระบบจำไว้`,
+        )} รายการจากหัวข้อ feedback ที่ระบบจำไว้ กรุณาอัปโหลดไฟล์แผนอีกครั้งเพื่ออัปเดตแท็บ Feedback โรงงาน / วิเคราะห์ผล / AI vs แผน`,
       });
     } catch (error) {
       setUploadStatus({
@@ -2381,6 +2387,20 @@ function CommentCard({
   );
 }
 
+function PlanDataEmptyState() {
+  return (
+    <section className="rounded-xl border border-dashed border-[#f5b4cf] bg-white/90 p-8 text-center shadow-sm">
+      <div className="mx-auto grid size-14 place-items-center rounded-full bg-[#ffe8f1] text-[#ef3e8f]">
+        <Database size={28} />
+      </div>
+      <h2 className="mt-4 text-xl font-bold">ยังไม่มีข้อมูล AI เทียบแผนชุดล่าสุด</h2>
+      <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-500">
+        กรุณาอัปโหลดไฟล์ผล AI และไฟล์แผนที่มีคำว่า Balance ในชื่อไฟล์ให้ครบคู่ ระบบจะล้างผลเทียบเก่าและสร้างข้อมูลใหม่ให้แท็บ Feedback โรงงาน, วิเคราะห์ผล และ AI vs แผน
+      </p>
+    </section>
+  );
+}
+
 function FactoryFeedbackPanel({
   data,
   feedback,
@@ -2428,6 +2448,10 @@ function FactoryFeedbackPanel({
     "มีคำสั่งขายเร่งด่วน",
     "ข้อมูลตั้งต้นของ AI ไม่ครบ",
   ];
+
+  if (rows.length === 0) {
+    return <PlanDataEmptyState />;
+  }
 
   function toggleReason(id: string, reason: string) {
     const current = feedback[id]?.accuracy ? feedback[id].accuracy.split("|").filter(Boolean) : [];
@@ -2781,7 +2805,9 @@ function AnalyzeVdpPanel({
         <TransferFilterBox label="โรงงาน" options={factories} values={factoryFilter} onChange={setFactoryFilter} />
       </div>
 
-      <div className="rounded-xl border border-[#f5b4cf] bg-white/95 p-5 shadow-sm">
+      {compareMode === "plan" && planRows.length === 0 ? <PlanDataEmptyState /> : null}
+
+      {compareMode === "plan" && planRows.length === 0 ? null : <div className="rounded-xl border border-[#f5b4cf] bg-white/95 p-5 shadow-sm">
         <div className="mb-4">
           <p className="text-sm font-bold text-[#ef3e8f]">สรุปแยกตามมิติ</p>
           <h3 className="mt-1 text-2xl font-bold">ดูว่า AI หรือแผนดีกว่าในแต่ละด้าน</h3>
@@ -2794,9 +2820,9 @@ function AnalyzeVdpPanel({
             <DimensionSummaryCard key={item.label} item={item} />
           ))}
         </div>
-      </div>
+      </div>}
 
-      <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+      {compareMode === "plan" && planRows.length === 0 ? null : <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
         <AnalyzeCard title="%VDP เปรียบเทียบรายโรงงาน">
           <div className="analyze-chart-scroll w-full max-w-full overflow-x-auto overflow-y-hidden pb-3">
             <div className="flex h-[340px] min-w-max items-end gap-3 border-b border-l border-[#dfe6ef] px-4 pb-8">
@@ -2838,9 +2864,9 @@ function AnalyzeVdpPanel({
             />
           </div>
         </AnalyzeCard>
-      </div>
+      </div>}
 
-      <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr_0.9fr]">
+      {compareMode === "plan" && planRows.length === 0 ? null : <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr_0.9fr]">
         <AnalyzeCard title="เทียบ KPI สำคัญ">
           <div className="mobile-table-frame rounded-lg border border-[#e8edf4]">
             <div className="mobile-table-scroll overflow-auto">
@@ -2919,7 +2945,7 @@ function AnalyzeVdpPanel({
             <Insight tone="yellow" icon={<Database size={18} />} text={`ไฟล์แผน: ${uploadedNames.balance ?? data?.sourceFile ?? "-"}`} />
           </div>
         </AnalyzeCard>
-      </div>
+      </div>}
     </section>
   );
 }
@@ -3592,6 +3618,7 @@ function BalanceComparison({
   const [factoryStatusFilters, setFactoryStatusFilters] = useState<string[]>(["ต่างปานกลาง", "ต่างกันมาก"]);
   const [productStatusFilters, setProductStatusFilters] = useState<string[]>(["ต่างปานกลาง", "ต่างกันมาก"]);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+
   const factories = useMemo(
     () => Array.from(new Set(rows.map((row) => row.factory))).sort((a, b) => a.localeCompare(b, "th")),
     [rows],
@@ -3670,6 +3697,10 @@ function BalanceComparison({
         minute: "2-digit",
       }).format(new Date()),
     );
+  }
+
+  if (rows.length === 0) {
+    return <PlanDataEmptyState />;
   }
 
   return (
