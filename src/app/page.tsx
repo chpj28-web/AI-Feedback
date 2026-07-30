@@ -81,6 +81,20 @@ type BalanceData = {
   records: BalanceRecord[];
 };
 
+type PlanComparisonHistoryItem = {
+  id: string;
+  label: string;
+  uploadedAt: string;
+  aiFile: string;
+  planFile: string;
+  weeks: string[];
+  recordCount: number;
+};
+
+type StoredPlanComparison = PlanComparisonHistoryItem & {
+  data: BalanceData;
+};
+
 type AiData = {
   generatedAt: string;
   sourceFile: string;
@@ -177,6 +191,8 @@ const uploadedDataKey = "ai-feedback-uploaded-ai-data-v2";
 const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v2";
 const uploadedActualTransferKey = "ai-feedback-uploaded-actual-transfer-v1";
 const uploadedBalanceComparisonKey = "ai-feedback-uploaded-balance-comparison-v1";
+const planComparisonDbName = "ai-feedback-plan-comparison-db";
+const planComparisonStoreName = "planComparisons";
 const uploadHistoryKey = "ai-feedback-upload-history-v1";
 const numberFormatter = new Intl.NumberFormat("th-TH", {
   maximumFractionDigits: 2,
@@ -1118,6 +1134,94 @@ function balanceKey(
   return [tableType, factory, week, productGroup, metric].join("|");
 }
 
+function planComparisonMeta(data: BalanceData): PlanComparisonHistoryItem {
+  const weeks = Array.from(new Set(data.records.map((record) => normalizeWeek(record.week)).filter(Boolean))).sort(
+    (a, b) => Number(b) - Number(a),
+  );
+  const uploadedAt = data.generatedAt || new Date().toISOString();
+  const weekLabel = weeks.length > 0 ? `WK ${weeks.join(", ")}` : "ไม่พบสัปดาห์";
+
+  return {
+    id: `${uploadedAt}|${data.aiFile}|${data.sourceFile}`,
+    label: `${weekLabel} · ${data.aiFile} vs ${data.sourceFile}`,
+    uploadedAt,
+    aiFile: data.aiFile,
+    planFile: data.sourceFile,
+    weeks,
+    recordCount: data.records.length,
+  };
+}
+
+function openPlanComparisonDb(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(planComparisonDbName, 1);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(planComparisonStoreName)) {
+        database.createObjectStore(planComparisonStoreName, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveStoredPlanComparison(data: BalanceData) {
+  const database = await openPlanComparisonDb();
+  if (!database) return planComparisonMeta(data);
+  const item: StoredPlanComparison = { ...planComparisonMeta(data), data };
+
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(planComparisonStoreName, "readwrite");
+    transaction.objectStore(planComparisonStoreName).put(item);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+  database.close();
+  return item;
+}
+
+async function listStoredPlanComparisons() {
+  const database = await openPlanComparisonDb();
+  if (!database) return [];
+
+  const items = await new Promise<StoredPlanComparison[]>((resolve, reject) => {
+    const transaction = database.transaction(planComparisonStoreName, "readonly");
+    const request = transaction.objectStore(planComparisonStoreName).getAll();
+    request.onsuccess = () => resolve(request.result as StoredPlanComparison[]);
+    request.onerror = () => reject(request.error);
+  });
+  database.close();
+
+  return items
+    .map((item) => ({
+      id: item.id,
+      label: item.label,
+      uploadedAt: item.uploadedAt,
+      aiFile: item.aiFile,
+      planFile: item.planFile,
+      weeks: item.weeks,
+      recordCount: item.recordCount,
+    }))
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+}
+
+async function getStoredPlanComparison(id: string) {
+  const database = await openPlanComparisonDb();
+  if (!database) return null;
+
+  const item = await new Promise<StoredPlanComparison | undefined>((resolve, reject) => {
+    const transaction = database.transaction(planComparisonStoreName, "readonly");
+    const request = transaction.objectStore(planComparisonStoreName).get(id);
+    request.onsuccess = () => resolve(request.result as StoredPlanComparison | undefined);
+    request.onerror = () => reject(request.error);
+  });
+  database.close();
+  return item?.data ?? null;
+}
+
 export default function Home() {
   const [data, setData] = useState<AiData | null>(null);
   const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
@@ -1133,6 +1237,8 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [aiWorkbookFile, setAiWorkbookFile] = useState<File | null>(null);
   const [balanceWorkbookFile, setBalanceWorkbookFile] = useState<File | null>(null);
+  const [planComparisonHistory, setPlanComparisonHistory] = useState<PlanComparisonHistoryItem[]>([]);
+  const [activePlanComparisonId, setActivePlanComparisonId] = useState("");
   const [uploadedNames, setUploadedNames] = useState<{ ai?: string; actual?: string; balance?: string }>({});
   const [uploadStatus, setUploadStatus] = useState<{
     tone: "success" | "error";
@@ -1199,14 +1305,32 @@ export default function Home() {
 
     fetch("/balance-comparison-data.json")
       .then((response) => (response.ok ? response.json() : null))
-      .then((comparison: BalanceData | null) => {
+      .then(async (comparison: BalanceData | null) => {
         const uploaded = window.localStorage.getItem(uploadedBalanceComparisonKey);
         if (uploaded) {
-          setBalanceData(JSON.parse(uploaded) as BalanceData);
+          const uploadedComparison = JSON.parse(uploaded) as BalanceData;
+          const stored = await saveStoredPlanComparison(uploadedComparison);
+          setBalanceData(uploadedComparison);
+          setActivePlanComparisonId(stored.id);
+          setPlanComparisonHistory(await listStoredPlanComparisons());
           return;
         }
 
-        if (comparison) setBalanceData(comparison);
+        const storedItems = await listStoredPlanComparisons();
+        setPlanComparisonHistory(storedItems);
+        if (storedItems[0]) {
+          const storedComparison = await getStoredPlanComparison(storedItems[0].id);
+          if (storedComparison) {
+            setBalanceData(storedComparison);
+            setActivePlanComparisonId(storedItems[0].id);
+            return;
+          }
+        }
+
+        if (comparison) {
+          setBalanceData(comparison);
+          setActivePlanComparisonId("");
+        }
       })
       .catch(() => undefined);
 
@@ -1325,12 +1449,42 @@ export default function Home() {
     }
     setBalanceData(comparison);
     window.localStorage.setItem(uploadedBalanceComparisonKey, JSON.stringify(comparison));
+    const stored = await saveStoredPlanComparison(comparison);
+    setActivePlanComparisonId(stored.id);
+    setPlanComparisonHistory(await listStoredPlanComparisons());
     return comparison;
   }
 
   function clearPlanComparison() {
     setBalanceData(null);
+    setActivePlanComparisonId("");
     window.localStorage.removeItem(uploadedBalanceComparisonKey);
+  }
+
+  async function handlePlanHistoryChange(id: string) {
+    setActivePlanComparisonId(id);
+    if (!id) return;
+
+    const comparison = await getStoredPlanComparison(id);
+    if (!comparison) {
+      setUploadStatus({
+        tone: "error",
+        message: "ไม่พบประวัติไฟล์ชุดนี้ในเครื่อง",
+      });
+      return;
+    }
+
+    setBalanceData(comparison);
+    setUploadedNames((current) => ({
+      ...current,
+      ai: comparison.aiFile,
+      balance: comparison.sourceFile,
+    }));
+    window.localStorage.setItem(uploadedBalanceComparisonKey, JSON.stringify(comparison));
+    setUploadStatus({
+      tone: "success",
+      message: `เปิดประวัติ ${comparison.aiFile} เทียบ ${comparison.sourceFile}`,
+    });
   }
 
   async function handleAiUpload(file: File) {
@@ -1537,9 +1691,23 @@ export default function Home() {
 
           <div className="space-y-5 px-4 py-5 sm:px-8">
             {activeTab === "analyze" ? (
-              <AnalyzeVdpPanel data={balanceData} aiData={data} feedback={feedback} uploadedNames={uploadedNames} />
+              <>
+                <PlanHistorySelector
+                  items={planComparisonHistory}
+                  value={activePlanComparisonId}
+                  onChange={handlePlanHistoryChange}
+                />
+                <AnalyzeVdpPanel data={balanceData} aiData={data} feedback={feedback} uploadedNames={uploadedNames} />
+              </>
             ) : activeTab === "factoryFeedback" ? (
-              <FactoryFeedbackPanel data={balanceData} feedback={feedback} updateFeedback={updateFeedback} />
+              <>
+                <PlanHistorySelector
+                  items={planComparisonHistory}
+                  value={activePlanComparisonId}
+                  onChange={handlePlanHistoryChange}
+                />
+                <FactoryFeedbackPanel data={balanceData} feedback={feedback} updateFeedback={updateFeedback} />
+              </>
             ) : activeTab === "upload" ? (
               <UploadAiPanel
                 data={data}
@@ -1559,11 +1727,18 @@ export default function Home() {
                 updateFeedback={updateFeedback}
               />
             ) : activeTab === "balance" ? (
-              <BalanceComparison
-                data={balanceData}
-                feedback={feedback}
-                updateFeedback={updateFeedback}
-              />
+              <>
+                <PlanHistorySelector
+                  items={planComparisonHistory}
+                  value={activePlanComparisonId}
+                  onChange={handlePlanHistoryChange}
+                />
+                <BalanceComparison
+                  data={balanceData}
+                  feedback={feedback}
+                  updateFeedback={updateFeedback}
+                />
+              </>
             ) : (
               <>
                 <ContextBar
@@ -2412,6 +2587,51 @@ function PlanDataEmptyState() {
       <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-500">
         กรุณาอัปโหลดไฟล์ผล AI และไฟล์แผนที่มีคำว่า Balance ในชื่อไฟล์ให้ครบคู่ ระบบจะล้างผลเทียบเก่าและสร้างข้อมูลใหม่ให้แท็บ Feedback โรงงาน, วิเคราะห์ผล และ AI vs แผน
       </p>
+    </section>
+  );
+}
+
+function PlanHistorySelector({
+  items,
+  value,
+  onChange,
+}: {
+  items: PlanComparisonHistoryItem[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const active = items.find((item) => item.id === value);
+
+  return (
+    <section className="rounded-xl border border-[#f5b4cf] bg-white/95 p-4 shadow-sm">
+      <div className="grid gap-3 lg:grid-cols-[1fr_320px] lg:items-center">
+        <div>
+          <p className="text-sm font-bold text-[#ef3e8f]">ชุดข้อมูล AI vs แผน</p>
+          <h2 className="mt-1 text-lg font-bold">
+            {active ? active.label : "ยังไม่ได้เลือกประวัติ"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {active
+              ? `${active.recordCount.toLocaleString("th-TH")} รายการ · อัปโหลด ${new Intl.DateTimeFormat("th-TH", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(active.uploadedAt))}`
+              : "เมื่ออัปโหลด AI + ไฟล์แผน ระบบจะเก็บชุดข้อมูลไว้ให้เลือกย้อนหลัง"}
+          </p>
+        </div>
+        <select
+          className="h-11 w-full rounded-md border border-[#dfe6ef] bg-white px-4 text-sm font-bold text-slate-700 shadow-sm outline-none focus:border-[#ef3e8f]"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        >
+          <option value="">เลือกประวัติไฟล์ที่เคยอัปโหลด</option>
+          {items.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
     </section>
   );
 }
