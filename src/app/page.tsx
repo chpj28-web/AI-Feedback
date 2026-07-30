@@ -323,6 +323,21 @@ function firstHeaderIndex(headers: string[], names: string[]) {
   return 0;
 }
 
+function normalizeWeek(value: unknown) {
+  const text = cellText(value).trim();
+  if (!text) return "";
+
+  const exactNumber = Number(text);
+  if (Number.isInteger(exactNumber) && exactNumber >= 1 && exactNumber <= 53) {
+    return String(exactNumber);
+  }
+
+  const wkMatch = text.match(/\b(?:wk|week|สัปดาห์)\s*0?([1-9]|[1-4]\d|5[0-3])\b/i);
+  if (wkMatch) return String(Number(wkMatch[1]));
+
+  return "";
+}
+
 function uploadKindFromName(fileName: string): UploadHistoryItem["type"] | null {
   const lower = fileName.toLowerCase();
   if (lower.includes("actual")) return "Actual";
@@ -483,7 +498,7 @@ async function parseAiWorkbook(file: File): Promise<AiData> {
       if (rowNumber === 1) return;
 
       const factory = factoryFromRow(row, headers);
-      const week = weekCol ? cellText(row.getCell(weekCol).value).trim() : "";
+      const week = weekCol ? normalizeWeek(row.getCell(weekCol).value) : "";
 
       if (isTransferSheet && sourceCol && destinationCol && productGroupCol && aiTransferCol) {
         const source = cellText(row.getCell(sourceCol).value).trim() || "ไม่ระบุ";
@@ -800,7 +815,7 @@ async function parseBalanceComparisonWorkbook(aiFile: File, balanceFile: File): 
 
         worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
           if (rowNumber === 1) return;
-          const week = cellText(row.getCell(weekCol).value).trim();
+          const week = normalizeWeek(row.getCell(weekCol).value);
           const factory = cellText(row.getCell(factoryCol).value).trim() || "ไม่ระบุโรงงาน";
           const value = numericValue(row.getCell(metricCol).value);
           if (!week || value === null) return;
@@ -838,7 +853,7 @@ async function parseBalanceComparisonWorkbook(aiFile: File, balanceFile: File): 
 
         worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
           if (rowNumber === 1) return;
-          const week = cellText(row.getCell(weekCol).value).trim();
+          const week = normalizeWeek(row.getCell(weekCol).value);
           const factory = cellText(row.getCell(factoryCol).value).trim() || "ไม่ระบุโรงงาน";
           const productGroup = cellText(row.getCell(productGroupCol).value).trim() || "ไม่ระบุกลุ่ม";
           const value = numericValue(row.getCell(metricCol).value);
@@ -875,7 +890,7 @@ async function parseBalanceComparisonWorkbook(aiFile: File, balanceFile: File): 
     balanceWorksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (rowNumber === 1) return;
       const factory = cellText(row.getCell(balanceFactoryCol).value).trim() || "ไม่ระบุโรงงาน";
-      const week = cellText(row.getCell(balanceWeekCol).value).trim();
+      const week = normalizeWeek(row.getCell(balanceWeekCol).value);
       const value = numericValue(row.getCell(metricCol).value);
       if (!week || value === null) return;
       const key = balanceKey("factory", factory, week, "", metric);
@@ -893,7 +908,7 @@ async function parseBalanceComparisonWorkbook(aiFile: File, balanceFile: File): 
       balanceWorksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
         if (rowNumber === 1) return;
         const factory = cellText(row.getCell(balanceFactoryCol).value).trim() || "ไม่ระบุโรงงาน";
-        const week = cellText(row.getCell(balanceWeekCol).value).trim();
+        const week = normalizeWeek(row.getCell(balanceWeekCol).value);
         const productGroup = cellText(row.getCell(balanceProductGroupCol).value).trim() || "ไม่ระบุกลุ่ม";
         const value = numericValue(row.getCell(metricCol).value);
         if (!week || value === null) return;
@@ -982,7 +997,7 @@ async function parseBalanceComparisonFromAiData(aiData: AiData, balanceFile: Fil
     balanceWorksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (rowNumber === 1) return;
       const factory = cellText(row.getCell(factoryCol).value).trim() || "ไม่ระบุโรงงาน";
-      const week = cellText(row.getCell(weekCol).value).trim();
+      const week = normalizeWeek(row.getCell(weekCol).value);
       const value = numericValue(row.getCell(metricCol).value);
       if (!week || value === null) return;
 
@@ -1245,7 +1260,7 @@ export default function Home() {
       new Set(
         feedbackRecords
           .filter((record) => !selectedFactory || record.factory === selectedFactory)
-          .flatMap((record) => record.weeks),
+          .flatMap((record) => record.weeks.map((item) => normalizeWeek(item)).filter(Boolean)),
       ),
     ).sort((a, b) => Number(a) - Number(b));
   }, [feedbackRecords, selectedFactory]);
@@ -1258,7 +1273,7 @@ export default function Home() {
       const matchesMetric =
         metricFilters.length === 0 || metricFilters.includes(record.metric);
       const matchesWeek =
-        !selectedWeek || record.weeks.includes(selectedWeek);
+        !selectedWeek || record.weeks.some((item) => normalizeWeek(item) === selectedWeek);
 
       return matchesSheet && matchesFactory && matchesWeek && matchesMetric;
     });
@@ -2415,7 +2430,7 @@ function FactoryFeedbackPanel({
   const [factoryFilters, setFactoryFilters] = useState<string[]>([]);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [savedCard, setSavedCard] = useState<{ id: string; time: string } | null>(null);
-  const weeks = Array.from(new Set(rows.map((row) => row.week).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+  const weeks = Array.from(new Set(rows.map((row) => normalizeWeek(row.week)).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
   const activeWeekFilters =
     weekFilters.length > 0 && weekFilters.every((week) => weeks.includes(week))
       ? weekFilters
@@ -2429,7 +2444,7 @@ function FactoryFeedbackPanel({
   const productRows = rows.filter(
     (row) =>
       row.tableType === "product-group" &&
-      (activeWeekFilters.length === 0 || activeWeekFilters.includes(row.week)) &&
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(row.week))) &&
       visibleFactories.includes(row.factory),
   );
   const factoryCards = visibleFactories
@@ -2709,7 +2724,7 @@ function AnalyzeVdpPanel({
   const planRows = useMemo(() => dedupeBalanceRows(data?.records ?? []), [data]);
   const actualRows = useMemo(() => buildActualAnalyzeRows(aiData, feedback), [aiData, feedback]);
   const rows = compareMode === "plan" ? planRows : actualRows;
-  const weeks = Array.from(new Set(rows.map((row) => row.week).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+  const weeks = Array.from(new Set(rows.map((row) => normalizeWeek(row.week)).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
   const activeWeekFilters =
     weekFilter.length > 0 && weekFilter.every((week) => weeks.includes(week))
       ? weekFilter
@@ -2721,7 +2736,7 @@ function AnalyzeVdpPanel({
   );
   const filteredRows = rows.filter(
     (row) =>
-      (activeWeekFilters.length === 0 || activeWeekFilters.includes(row.week)) &&
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(row.week))) &&
       (factoryFilter.length === 0 || factoryFilter.includes(row.factory)),
   );
   const productRows = filteredRows.filter((row) => row.tableType === "product-group");
@@ -2960,7 +2975,7 @@ function AnalyzePanel({
   const rows = useMemo(() => dedupeBalanceRows(data?.records ?? []), [data]);
   const productRows = rows.filter((row) => row.tableType === "product-group");
   const factories = Array.from(new Set(rows.map((row) => row.factory).filter(Boolean)));
-  const weeks = Array.from(new Set(rows.map((row) => row.week).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
+  const weeks = Array.from(new Set(rows.map((row) => normalizeWeek(row.week)).filter(Boolean))).sort((a, b) => Number(b) - Number(a));
   const weekLabel = weeks[0] ? `สัปดาห์ที่ ${weeks[0]}` : "สัปดาห์ล่าสุด";
   const comparableRows = rows.filter((row) => row.aiValue !== null && row.balanceValue !== null);
   const planTotal = sumBalanceMetric(productRows, "ผลิต", "balanceValue");
@@ -3624,7 +3639,7 @@ function BalanceComparison({
     [rows],
   );
   const weeks = useMemo(
-    () => Array.from(new Set(rows.map((row) => row.week))).sort((a, b) => Number(b) - Number(a)),
+    () => Array.from(new Set(rows.map((row) => normalizeWeek(row.week)).filter(Boolean))).sort((a, b) => Number(b) - Number(a)),
     [rows],
   );
   const groups = useMemo(
@@ -3665,7 +3680,7 @@ function BalanceComparison({
   const commonFilteredRows = rows.filter(
     (row) =>
       (factoryFilters.length === 0 || factoryFilters.includes(row.factory)) &&
-      (activeWeekFilters.length === 0 || activeWeekFilters.includes(row.week)),
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(row.week))),
   );
   const factoryRows = commonFilteredRows.filter(
     (row) => {
@@ -4017,7 +4032,9 @@ function TransferComparison({
   );
   const weeks = useMemo(
     () =>
-      Array.from(new Set(rowsWithActual.flatMap((record) => record.weeks))).sort(
+      Array.from(
+        new Set(rowsWithActual.flatMap((record) => record.weeks.map((item) => normalizeWeek(item)).filter(Boolean))),
+      ).sort(
         (a, b) => Number(b) - Number(a),
       ),
     [rowsWithActual],
@@ -4039,7 +4056,7 @@ function TransferComparison({
       record.actualProductTypes.some((type) => typeFilters.includes(type));
     const matchesWeek =
       activeWeekFilters.length === 0 ||
-      record.weeks.some((week) => activeWeekFilters.includes(week));
+      record.weeks.some((week) => activeWeekFilters.includes(normalizeWeek(week)));
     const recordStatus = scoreLabel(
       transferScore(record.aiTransfer, record.actualTransfer),
     );
