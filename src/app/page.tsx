@@ -191,6 +191,7 @@ const uploadedDataKey = "ai-feedback-uploaded-ai-data-v2";
 const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v2";
 const uploadedActualTransferKey = "ai-feedback-uploaded-actual-transfer-v1";
 const uploadedBalanceComparisonKey = "ai-feedback-uploaded-balance-comparison-v1";
+const planComparisonHistoryKey = "ai-feedback-plan-comparison-history-v1";
 const planComparisonDbName = "ai-feedback-plan-comparison-db";
 const planComparisonStoreName = "planComparisons";
 const uploadHistoryKey = "ai-feedback-upload-history-v1";
@@ -1168,10 +1169,39 @@ function openPlanComparisonDb(): Promise<IDBDatabase | null> {
   });
 }
 
+function readPlanComparisonHistoryIndex() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const saved = window.localStorage.getItem(planComparisonHistoryKey);
+    return saved ? (JSON.parse(saved) as PlanComparisonHistoryItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePlanComparisonHistoryIndex(items: PlanComparisonHistoryItem[]) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(planComparisonHistoryKey, JSON.stringify(items.slice(0, 50)));
+}
+
+function mergePlanComparisonHistory(items: PlanComparisonHistoryItem[]) {
+  const byId = new Map<string, PlanComparisonHistoryItem>();
+  for (const item of items) byId.set(item.id, item);
+  return [...byId.values()].sort(
+    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
+  );
+}
+
 async function saveStoredPlanComparison(data: BalanceData) {
+  const meta = planComparisonMeta(data);
+  const indexedItems = mergePlanComparisonHistory([meta, ...readPlanComparisonHistoryIndex()]);
+  writePlanComparisonHistoryIndex(indexedItems);
+
   const database = await openPlanComparisonDb();
-  if (!database) return planComparisonMeta(data);
-  const item: StoredPlanComparison = { ...planComparisonMeta(data), data };
+  if (!database) return meta;
+  const item: StoredPlanComparison = { ...meta, data };
 
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(planComparisonStoreName, "readwrite");
@@ -1185,7 +1215,7 @@ async function saveStoredPlanComparison(data: BalanceData) {
 
 async function listStoredPlanComparisons() {
   const database = await openPlanComparisonDb();
-  if (!database) return [];
+  if (!database) return readPlanComparisonHistoryIndex();
 
   const items = await new Promise<StoredPlanComparison[]>((resolve, reject) => {
     const transaction = database.transaction(planComparisonStoreName, "readonly");
@@ -1195,8 +1225,7 @@ async function listStoredPlanComparisons() {
   });
   database.close();
 
-  return items
-    .map((item) => ({
+  const metadata = items.map((item) => ({
       id: item.id,
       label: item.label,
       uploadedAt: item.uploadedAt,
@@ -1204,8 +1233,10 @@ async function listStoredPlanComparisons() {
       planFile: item.planFile,
       weeks: item.weeks,
       recordCount: item.recordCount,
-    }))
-    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    }));
+  const merged = mergePlanComparisonHistory([...metadata, ...readPlanComparisonHistoryIndex()]);
+  writePlanComparisonHistoryIndex(merged);
+  return merged;
 }
 
 async function getStoredPlanComparison(id: string) {
@@ -1469,7 +1500,7 @@ export default function Home() {
     if (!comparison) {
       setUploadStatus({
         tone: "error",
-        message: "ไม่พบประวัติไฟล์ชุดนี้ในเครื่อง",
+        message: "พบชื่อประวัติ แต่ไม่พบข้อมูลไฟล์ชุดนี้ในเครื่อง กรุณาอัปโหลด AI + แผนชุดนั้นอีกครั้งเพื่อบันทึกข้อมูลย้อนหลัง",
       });
       return;
     }
@@ -2617,6 +2648,7 @@ function PlanHistorySelector({
                   timeStyle: "short",
                 }).format(new Date(active.uploadedAt))}`
               : "เมื่ออัปโหลด AI + ไฟล์แผน ระบบจะเก็บชุดข้อมูลไว้ให้เลือกย้อนหลัง"}
+            {items.length > 0 ? ` · มีประวัติ ${items.length.toLocaleString("th-TH")} ชุด` : ""}
           </p>
         </div>
         <select
