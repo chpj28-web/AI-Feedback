@@ -120,6 +120,20 @@ type PlanningBalanceData = {
   records: PlanningBalanceRow[];
 };
 
+type UnifiedPlanningRow = {
+  product: string;
+  sap: string;
+  yieldFg: number | null;
+  aiProduction: number | null;
+  aiStock: number | null;
+  aiTransferIn: number | null;
+  aiTransferOut: number | null;
+  aiTotalSupply: number | null;
+  aiFcTotal: number | null;
+  aiQtTotal: number | null;
+  aiShortageSurplus: number | null;
+};
+
 type AiData = {
   generatedAt: string;
   sourceFile: string;
@@ -1762,6 +1776,7 @@ export default function Home() {
             {activeTab === "planning" ? (
               <PlanningPanel
                 data={data}
+                balanceData={balanceData}
                 planningData={planningBalanceData}
                 feedback={feedback}
                 updateFeedback={updateFeedback}
@@ -2655,19 +2670,22 @@ function CommentCard({
 
 function PlanningPanel({
   data,
+  balanceData,
   planningData,
   feedback,
   updateFeedback,
 }: {
   data: AiData | null;
+  balanceData: BalanceData | null;
   planningData: PlanningBalanceData | null;
   feedback: Record<string, Feedback>;
   updateFeedback: (id: string, patch: Partial<Feedback>) => void;
 }) {
-  const balanceRows = useMemo(() => planningData?.records ?? [], [planningData]);
+  const templateRows = useMemo(() => planningData?.records ?? [], [planningData]);
+  const aiPlanRows = useMemo(() => dedupeBalanceRows(balanceData?.records ?? []), [balanceData]);
   const aiRecords = useMemo(() => (data?.records ?? []).filter((record) => !isTransferRecord(record)), [data]);
   const [weekFilters, setWeekFilters] = useState<string[]>([]);
-  const [factoryFilters, setFactoryFilters] = useState<string[]>([]);
+  const [factoryFilter, setFactoryFilter] = useState("");
   const [productFilters, setProductFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [savedCard, setSavedCard] = useState<{ id: string; time: string } | null>(null);
@@ -2675,8 +2693,10 @@ function PlanningPanel({
     () =>
       Array.from(
         new Set(
-          (balanceRows.length > 0
-            ? balanceRows.map((row) => row.week)
+          (aiPlanRows.length > 0
+            ? aiPlanRows.map((row) => row.week)
+            : templateRows.length > 0
+              ? templateRows.map((row) => row.week)
             : aiRecords.flatMap((record) => record.weeks)
           )
             .map((item) => normalizeWeek(item))
@@ -2684,7 +2704,7 @@ function PlanningPanel({
         ),
       )
         .sort((a, b) => Number(b) - Number(a)),
-    [aiRecords, balanceRows],
+    [aiPlanRows, aiRecords, templateRows],
   );
   const activeWeekFilters =
     weekFilters.length > 0 && weekFilters.every((item) => weeks.includes(item))
@@ -2694,48 +2714,50 @@ function PlanningPanel({
         : [];
   const factories = useMemo(
     () =>
-      Array.from(new Set((balanceRows.length > 0 ? balanceRows : aiRecords).map((record) => record.factory))).sort(
-        (a, b) => a.localeCompare(b, "th"),
-      ),
-    [aiRecords, balanceRows],
+      Array.from(
+        new Set(
+          [
+            ...aiPlanRows.map((record) => record.factory),
+            ...templateRows.map((record) => record.factory),
+            ...aiRecords.map((record) => record.factory),
+          ].filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "th")),
+    [aiPlanRows, aiRecords, templateRows],
   );
+  const selectedFactory = factoryFilter && factories.includes(factoryFilter) ? factoryFilter : (factories[0] ?? "");
   const products = useMemo(
     () =>
-      Array.from(new Set(balanceRows.map((record) => record.product))).sort((a, b) => a.localeCompare(b, "th")),
-    [balanceRows],
+      Array.from(
+        new Set(
+          [
+            ...templateRows.map((record) => record.product),
+            ...aiPlanRows.map((record) => record.productGroup).filter(Boolean),
+          ].filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "th")),
+    [aiPlanRows, templateRows],
   );
-  const filteredBalanceRows = balanceRows.filter((record) => {
-    const matchesWeek =
-      activeWeekFilters.length === 0 ||
-      activeWeekFilters.includes(normalizeWeek(record.week));
-    const matchesFactory = factoryFilters.length === 0 || factoryFilters.includes(record.factory);
-    const matchesProduct = productFilters.length === 0 || productFilters.includes(record.product);
-    const status = planningBalanceStatus(record);
+  const selectedTemplateRows = templateRows.filter(
+    (record) =>
+      (!selectedFactory || record.factory === selectedFactory) &&
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(record.week))),
+  );
+  const selectedAiRows = aiPlanRows.filter(
+    (record) =>
+      record.tableType === "product-group" &&
+      (!selectedFactory || record.factory === selectedFactory) &&
+      (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(record.week))),
+  );
+  const planningRows = buildUnifiedPlanningRows(selectedTemplateRows, selectedAiRows).filter((row) => {
+    const matchesProduct = productFilters.length === 0 || productFilters.includes(row.product);
+    const status = unifiedPlanningStatus(row.aiShortageSurplus);
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(status);
-    return matchesWeek && matchesFactory && matchesProduct && matchesStatus;
+    return matchesProduct && matchesStatus;
   });
-  const filteredAiRecords = aiRecords.filter((record) => {
-    const matchesWeek =
-      activeWeekFilters.length === 0 ||
-      record.weeks.some((item) => activeWeekFilters.includes(normalizeWeek(item)));
-    const matchesFactory = factoryFilters.length === 0 || factoryFilters.includes(record.factory);
-    return matchesWeek && matchesFactory;
-  });
-  const factoryPlans = Array.from(
-    new Set((balanceRows.length > 0 ? filteredBalanceRows : filteredAiRecords).map((record) => record.factory)),
-  )
-    .sort((a, b) => a.localeCompare(b, "th"))
-    .map((factoryName) => {
-      const factoryBalanceRows = filteredBalanceRows.filter((record) => record.factory === factoryName);
-      const factoryAiRecords = filteredAiRecords
-        .filter((record) => record.factory === factoryName)
-        .sort((a, b) => planningMetricPriority(a.metric) - planningMetricPriority(b.metric));
-      return {
-        factoryName,
-        balanceRows: factoryBalanceRows,
-        aiRecords: factoryAiRecords,
-      };
-    });
+  const totalAiProduction = planningRows.reduce((sum, row) => sum + (row.aiProduction ?? 0), 0);
+  const totalAiShortage = planningRows.reduce((sum, row) => sum + Math.min(row.aiShortageSurplus ?? 0, 0), 0);
+  const totalAiSurplus = planningRows.reduce((sum, row) => sum + Math.max(row.aiShortageSurplus ?? 0, 0), 0);
 
   function savePlanCard(id: string) {
     window.localStorage.setItem(storageKey, JSON.stringify(feedback));
@@ -2760,12 +2782,25 @@ function PlanningPanel({
             </p>
           </div>
           <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
-            {factoryPlans.length.toLocaleString("th-TH")} โรงงาน
+            {selectedFactory || "ยังไม่พบโรงงาน"}
           </span>
         </div>
         <div className="grid gap-3 xl:grid-cols-4">
           <TransferFilterBox label="สัปดาห์" options={weeks} values={activeWeekFilters} onChange={setWeekFilters} />
-          <TransferFilterBox label="โรงงาน" options={factories} values={factoryFilters} onChange={setFactoryFilters} />
+          <label className="block">
+            <span className="mb-1 block text-xs font-bold text-slate-500">โรงงาน</span>
+            <select
+              className="h-11 w-full rounded-md border border-[#dfe6ef] bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-[#ef3e8f]"
+              value={selectedFactory}
+              onChange={(event) => setFactoryFilter(event.target.value)}
+            >
+              {factories.map((factoryName) => (
+                <option key={factoryName} value={factoryName}>
+                  {factoryName}
+                </option>
+              ))}
+            </select>
+          </label>
           <TransferFilterBox label="ชิ้นส่วน/กลุ่มสินค้า" options={products} values={productFilters} onChange={setProductFilters} />
           <TransferFilterBox
             label="สถานะ"
@@ -2777,113 +2812,100 @@ function PlanningPanel({
       </div>
 
       <div className="grid gap-5">
-        {factoryPlans.map(({ factoryName, balanceRows: factoryBalanceRows, aiRecords: factoryAiRecords }) => {
-          const feedbackId = `planning|${factoryName}|${activeWeekFilters.join(",") || "all"}`;
+        {selectedFactory ? (() => {
+          const feedbackId = `planning|${selectedFactory}|${activeWeekFilters.join(",") || "all"}`;
           const currentFeedback = feedback[feedbackId] ?? { actual: "", accuracy: "", comment: "" };
-          const totalProduction = factoryBalanceRows.reduce((sum, row) => sum + (row.production ?? 0), 0);
-          const totalShortage = factoryBalanceRows.reduce((sum, row) => sum + Math.min(row.shortageSurplus ?? 0, 0), 0);
-          const totalSurplus = factoryBalanceRows.reduce((sum, row) => sum + Math.max(row.shortageSurplus ?? 0, 0), 0);
 
           return (
-            <div key={factoryName} className="rounded-xl border border-[#e3e8f0] bg-white/95 p-5 shadow-sm">
+            <div key={selectedFactory} className="rounded-xl border border-[#e3e8f0] bg-white/95 p-5 shadow-sm">
               <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <h3 className="text-lg font-bold">{factoryName}</h3>
+                  <h3 className="text-lg font-bold">{selectedFactory}</h3>
                   <p className="text-sm text-slate-500">
-                    สัปดาห์ {activeWeekFilters.join(", ") || "-"} · {factoryBalanceRows.length || factoryAiRecords.length} แถววางแผน
+                    สัปดาห์ {activeWeekFilters.join(", ") || "-"} · {planningRows.length.toLocaleString("th-TH")} แถวใน template กลาง
                   </p>
                 </div>
                 <span className="rounded-md bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">
-                  รูปแบบชีท Balance
+                  Template กลางทุกโรงงาน
                 </span>
               </div>
 
               <div className="mb-4 grid gap-3 md:grid-cols-3">
-                <PlanningSummaryTile label="ผลิตรวม" value={`${formatCompact(totalProduction)} kg`} />
-                <PlanningSummaryTile label="ของขาด" value={`${formatCompact(Math.abs(totalShortage))} kg`} tone="red" />
-                <PlanningSummaryTile label="ของเหลือ" value={`${formatCompact(totalSurplus)} kg`} tone="green" />
+                <PlanningSummaryTile label="AI ผลิตรวม" value={`${formatCompact(totalAiProduction)} kg`} />
+                <PlanningSummaryTile label="AI ของขาด" value={`${formatCompact(Math.abs(totalAiShortage))} kg`} tone="red" />
+                <PlanningSummaryTile label="AI ของเหลือ" value={`${formatCompact(totalAiSurplus)} kg`} tone="green" />
               </div>
 
-              {factoryBalanceRows.length > 0 ? (
-                <div className="mobile-table-frame rounded-lg border border-[#dfe6ef]">
-                  <div className="mobile-table-scroll max-h-[560px] overflow-auto">
-                    <table className="w-full min-w-[1280px] border-collapse text-sm">
-                      <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
-                        <tr>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-left">ชิ้นส่วน/กลุ่มสินค้า</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">%Yield</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">ผลิต</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">ยกมา</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">รับโอน</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">รวมผลิต</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">FC Total</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">QT total</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">ขาด/เหลือ</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-center">สถานะ</th>
-                          <th className="border-r border-[#e3e8f0] px-3 py-3 text-left">ปรับแผน</th>
-                          <th className="px-3 py-3 text-left">หมายเหตุ</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {factoryBalanceRows.map((row) => {
-                          const rowFeedbackId = `planning-row|${row.id}`;
-                          const rowFeedback = feedback[rowFeedbackId] ?? { actual: "", accuracy: "", comment: "" };
-                          const status = planningBalanceStatus(row);
-                          return (
-                            <tr key={row.id} className="border-t border-[#e8edf4]">
-                              <td className="border-r border-[#e8edf4] px-3 py-3 font-medium">
-                                <p>{row.product}</p>
-                                {row.sap ? <p className="mt-1 text-xs text-slate-400">SAP {row.sap}</p> : null}
-                              </td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatPlanningPercent(row.yieldFg)}</td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.production)}</td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.stock)}</td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.transferIn)}</td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.totalSupply)}</td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.fcTotal)}</td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.qtTotal)}</td>
-                              <td className={`border-r border-[#e8edf4] px-3 py-3 text-right font-mono ${row.shortageSurplus !== null && row.shortageSurplus < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                {formatNumber(row.shortageSurplus)}
-                              </td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3 text-center">
-                                <span className={`inline-flex h-8 min-w-20 items-center justify-center rounded-md px-2 text-xs font-bold ${planningStatusTone(status)}`}>
-                                  {status}
-                                </span>
-                              </td>
-                              <td className="border-r border-[#e8edf4] px-3 py-3">
-                                <input
-                                  className="h-9 w-40 rounded-md border border-[#dfe6ef] px-3 text-sm outline-none focus:border-[#ef3e8f]"
-                                  placeholder="ตัวเลขใหม่"
-                                  value={rowFeedback.actual}
-                                  onChange={(event) => updateFeedback(rowFeedbackId, { actual: event.target.value })}
-                                />
-                              </td>
-                              <td className="px-3 py-3">
-                                <input
-                                  className="h-9 w-56 rounded-md border border-[#dfe6ef] px-3 text-sm outline-none focus:border-[#ef3e8f]"
-                                  placeholder="เหตุผลที่ปรับ"
-                                  value={rowFeedback.comment}
-                                  onChange={(event) => updateFeedback(rowFeedbackId, { comment: event.target.value })}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+              <div className="mobile-table-frame rounded-lg border border-[#dfe6ef]">
+                <div className="mobile-table-scroll max-h-[620px] overflow-auto">
+                  <table className="w-full min-w-[1480px] border-collapse text-sm">
+                    <thead className="bg-[#f8fafc] text-xs font-bold text-slate-600">
+                      <tr>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-left">ชิ้นส่วน/กลุ่มสินค้า</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">%Yield</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">AI ผลิต</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">AI ยกมา</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">AI รับโอน</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">AI โอนออก</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">AI Total Supply</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">AI FC</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">AI QT</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-right">AI ขาด/เหลือ</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-center">สถานะ</th>
+                        <th className="border-r border-[#e3e8f0] px-3 py-3 text-left">แผนที่จะใช้</th>
+                        <th className="px-3 py-3 text-left">หมายเหตุ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {planningRows.map((row) => {
+                        const rowFeedbackId = `planning-row|${selectedFactory}|${activeWeekFilters.join(",")}|${row.product}`;
+                        const rowFeedback = feedback[rowFeedbackId] ?? { actual: "", accuracy: "", comment: "" };
+                        const status = unifiedPlanningStatus(row.aiShortageSurplus);
+                        return (
+                          <tr key={rowFeedbackId} className="border-t border-[#e8edf4]">
+                            <td className="border-r border-[#e8edf4] px-3 py-3 font-medium">
+                              <p>{row.product}</p>
+                              {row.sap ? <p className="mt-1 text-xs text-slate-400">SAP {row.sap}</p> : null}
+                            </td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatPlanningPercent(row.yieldFg)}</td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.aiProduction)}</td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.aiStock)}</td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.aiTransferIn)}</td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.aiTransferOut)}</td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.aiTotalSupply)}</td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.aiFcTotal)}</td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-right font-mono">{formatNumber(row.aiQtTotal)}</td>
+                            <td className={`border-r border-[#e8edf4] px-3 py-3 text-right font-mono ${row.aiShortageSurplus !== null && row.aiShortageSurplus < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                              {formatNumber(row.aiShortageSurplus)}
+                            </td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3 text-center">
+                              <span className={`inline-flex h-8 min-w-20 items-center justify-center rounded-md px-2 text-xs font-bold ${planningStatusTone(status)}`}>
+                                {status}
+                              </span>
+                            </td>
+                            <td className="border-r border-[#e8edf4] px-3 py-3">
+                              <input
+                                className="h-9 w-44 rounded-md border border-[#dfe6ef] px-3 text-sm outline-none focus:border-[#ef3e8f]"
+                                placeholder="ใส่แผนที่จะใช้"
+                                value={rowFeedback.actual}
+                                onChange={(event) => updateFeedback(rowFeedbackId, { actual: event.target.value })}
+                              />
+                            </td>
+                            <td className="px-3 py-3">
+                              <input
+                                className="h-9 w-60 rounded-md border border-[#dfe6ef] px-3 text-sm outline-none focus:border-[#ef3e8f]"
+                                placeholder="เหตุผล/ข้อจำกัด"
+                                value={rowFeedback.comment}
+                                onChange={(event) => updateFeedback(rowFeedbackId, { comment: event.target.value })}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {factoryAiRecords.slice(0, 6).map((record) => (
-                    <div key={record.id} className="rounded-lg border border-[#edf1f6] bg-[#f8fafc] p-4">
-                      <p className="line-clamp-2 text-sm font-bold">{record.metric}</p>
-                      <p className="mt-2 text-2xl font-bold text-[#172033]">{formatNumber(record.aiValue)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{record.sheet}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+              </div>
 
               <div className="mt-5 grid gap-4 xl:grid-cols-[0.8fr_1fr_1fr]">
                 <label className="block text-sm font-bold">
@@ -2935,8 +2957,8 @@ function PlanningPanel({
               </div>
             </div>
           );
-        })}
-        {factoryPlans.length === 0 ? (
+        })() : null}
+        {!selectedFactory || planningRows.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#f5b4cf] bg-white/90 p-8 text-center text-slate-500">
             ยังไม่พบข้อมูลผล AI ตามตัวกรอง
           </div>
@@ -2946,26 +2968,91 @@ function PlanningPanel({
   );
 }
 
-function planningMetricPriority(metric: string) {
-  const priorities = [
-    "จำนวนหมูเข้าตัดแต่ง",
-    "Production",
-    "Total Supply",
-    "Quota",
-    "ของขาด",
-    "ของเหลือ",
-    "Transfer in",
-    "Transfer out",
-    "กำไร/ขาดทุน",
-  ];
-  const index = priorities.findIndex((item) => metric.toLowerCase().includes(item.toLowerCase()));
-  return index === -1 ? priorities.length : index;
+function buildUnifiedPlanningRows(
+  templateRows: PlanningBalanceRow[],
+  aiRows: BalanceRecord[],
+): UnifiedPlanningRow[] {
+  const byProduct = new Map<string, UnifiedPlanningRow>();
+
+  function ensure(product: string) {
+    const key = product || "ไม่ระบุกลุ่มสินค้า";
+    const current =
+      byProduct.get(key) ??
+      ({
+        product: key,
+        sap: "",
+        yieldFg: null,
+        aiProduction: null,
+        aiStock: null,
+        aiTransferIn: null,
+        aiTransferOut: null,
+        aiTotalSupply: null,
+        aiFcTotal: null,
+        aiQtTotal: null,
+        aiShortageSurplus: null,
+      } satisfies UnifiedPlanningRow);
+    byProduct.set(key, current);
+    return current;
+  }
+
+  for (const row of templateRows) {
+    const current = ensure(row.product);
+    current.sap = current.sap || row.sap;
+    current.yieldFg = current.yieldFg ?? row.yieldFg;
+  }
+
+  for (const row of aiRows) {
+    const current = ensure(row.productGroup);
+    const value = row.aiValue;
+    const metric = row.metric.toLowerCase();
+    const setNumber = (field: keyof Pick<
+      UnifiedPlanningRow,
+      | "aiProduction"
+      | "aiStock"
+      | "aiTransferIn"
+      | "aiTransferOut"
+      | "aiTotalSupply"
+      | "aiFcTotal"
+      | "aiQtTotal"
+      | "aiShortageSurplus"
+    >) => {
+      if (value === null) return;
+      current[field] = (current[field] ?? 0) + value;
+    };
+
+    if (metric.includes("ผลิต")) setNumber("aiProduction");
+    else if (metric.includes("stock")) setNumber("aiStock");
+    else if (metric.includes("รับโอน") || metric.includes("transfer in")) setNumber("aiTransferIn");
+    else if (metric.includes("transfer out") || metric.includes("โอนออก")) setNumber("aiTransferOut");
+    else if (metric.includes("total supply")) setNumber("aiTotalSupply");
+    else if (metric.includes("fc total") || metric === "fc") setNumber("aiFcTotal");
+    else if (metric.includes("qt total") || metric.includes("quota")) setNumber("aiQtTotal");
+    else if (metric.includes("ขาด") || metric.includes("เหลือ") || metric.includes("shortage")) {
+      setNumber("aiShortageSurplus");
+    }
+  }
+
+  return [...byProduct.values()]
+    .filter((row) =>
+      [
+        row.yieldFg,
+        row.aiProduction,
+        row.aiStock,
+        row.aiTransferIn,
+        row.aiTransferOut,
+        row.aiTotalSupply,
+        row.aiFcTotal,
+        row.aiQtTotal,
+        row.aiShortageSurplus,
+      ].some((value) => value !== null),
+    )
+    .sort((a, b) => a.product.localeCompare(b.product, "th"));
 }
 
-function planningBalanceStatus(row: PlanningBalanceRow) {
-  if (row.shortageSurplus === null) return "รอข้อมูล";
-  if (row.shortageSurplus < 0) return "ขาด";
-  if (row.shortageSurplus > 0) return "เหลือ";
+function unifiedPlanningStatus(value: number | null) {
+  if (value === null) return "รอข้อมูล";
+  if (value < 0) return "ขาด";
+  if (value > 0) return "เหลือ";
   return "สมดุล";
 }
 
