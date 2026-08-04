@@ -114,7 +114,7 @@ type UploadHistoryItem = {
   uploadedAt: string;
 };
 
-type AppTab = "analyze" | "factoryFeedback" | "feedback" | "transfer" | "balance" | "upload";
+type AppTab = "planning" | "analyze" | "factoryFeedback" | "feedback" | "transfer" | "balance" | "upload";
 
 type CellLike = {
   value?: unknown;
@@ -271,6 +271,7 @@ const balanceProductMetricMap: Record<string, string[]> = {
 };
 
 const navItems = [
+  { label: "วางแผน", icon: Target, tab: "planning" },
   { label: "Feedback โรงงาน", icon: MessageCircle, tab: "factoryFeedback" },
   { label: "วิเคราะห์ผล", icon: TrendingUp, tab: "analyze" },
   { label: "AI vs Actual", icon: Edit3, tab: "feedback" },
@@ -1671,6 +1672,8 @@ export default function Home() {
                   <h1 className="text-lg font-bold leading-snug sm:text-2xl">
                     {activeTab === "upload"
                       ? "อัปโหลดผล AI"
+                      : activeTab === "planning"
+                        ? "วางแผน"
                       : activeTab === "analyze"
                         ? "วิเคราะห์ผล"
                       : activeTab === "balance"
@@ -1682,6 +1685,8 @@ export default function Home() {
                   <p className="mt-1 line-clamp-2 text-sm text-slate-500">
                       {activeTab === "upload"
                         ? "นำเข้าไฟล์ Excel ที่มีโครงสร้างชีตและหัวคอลัมน์แบบเดิม"
+                      : activeTab === "planning"
+                        ? "ใช้ผล AI เป็นจุดตั้งต้นให้ทีมวางแผนรายโรงงาน"
                       : activeTab === "balance"
                           ? "เทียบผล AI กับไฟล์แผนตามโรงงาน สัปดาห์ และกลุ่มสินค้า"
                         : activeTab === "transfer"
@@ -1721,7 +1726,9 @@ export default function Home() {
           </header>
 
           <div className="space-y-5 px-4 py-5 sm:px-8">
-            {activeTab === "analyze" ? (
+            {activeTab === "planning" ? (
+              <PlanningPanel data={data} feedback={feedback} updateFeedback={updateFeedback} />
+            ) : activeTab === "analyze" ? (
               <>
                 <PlanHistorySelector
                   items={planComparisonHistory}
@@ -2606,6 +2613,207 @@ function CommentCard({
       </div>
     </section>
   );
+}
+
+function PlanningPanel({
+  data,
+  feedback,
+  updateFeedback,
+}: {
+  data: AiData | null;
+  feedback: Record<string, Feedback>;
+  updateFeedback: (id: string, patch: Partial<Feedback>) => void;
+}) {
+  const records = useMemo(() => (data?.records ?? []).filter((record) => !isTransferRecord(record)), [data]);
+  const [weekFilters, setWeekFilters] = useState<string[]>([]);
+  const [factoryFilters, setFactoryFilters] = useState<string[]>([]);
+  const [sheetFilters, setSheetFilters] = useState<string[]>([]);
+  const [metricFilters, setMetricFilters] = useState<string[]>([]);
+  const [savedCard, setSavedCard] = useState<{ id: string; time: string } | null>(null);
+  const weeks = useMemo(
+    () =>
+      Array.from(new Set(records.flatMap((record) => record.weeks.map((item) => normalizeWeek(item)).filter(Boolean))))
+        .sort((a, b) => Number(b) - Number(a)),
+    [records],
+  );
+  const activeWeekFilters =
+    weekFilters.length > 0 && weekFilters.every((item) => weeks.includes(item))
+      ? weekFilters
+      : weeks[0]
+        ? [weeks[0]]
+        : [];
+  const factories = useMemo(
+    () => Array.from(new Set(records.map((record) => record.factory))).sort((a, b) => a.localeCompare(b, "th")),
+    [records],
+  );
+  const sheets = useMemo(
+    () => Array.from(new Set(records.map((record) => record.sheet))).sort((a, b) => a.localeCompare(b, "th")),
+    [records],
+  );
+  const metrics = useMemo(
+    () => Array.from(new Set(records.map((record) => record.metric))).sort((a, b) => a.localeCompare(b, "th")),
+    [records],
+  );
+  const filteredRecords = records.filter((record) => {
+    const matchesWeek =
+      activeWeekFilters.length === 0 ||
+      record.weeks.some((item) => activeWeekFilters.includes(normalizeWeek(item)));
+    const matchesFactory = factoryFilters.length === 0 || factoryFilters.includes(record.factory);
+    const matchesSheet = sheetFilters.length === 0 || sheetFilters.includes(record.sheet);
+    const matchesMetric = metricFilters.length === 0 || metricFilters.includes(record.metric);
+    return matchesWeek && matchesFactory && matchesSheet && matchesMetric;
+  });
+  const factoryPlans = Array.from(new Set(filteredRecords.map((record) => record.factory)))
+    .sort((a, b) => a.localeCompare(b, "th"))
+    .map((factoryName) => {
+      const factoryRecords = filteredRecords
+        .filter((record) => record.factory === factoryName)
+        .sort((a, b) => planningMetricPriority(a.metric) - planningMetricPriority(b.metric));
+      return {
+        factoryName,
+        records: factoryRecords,
+        highlights: factoryRecords.slice(0, 6),
+      };
+    });
+
+  function savePlanCard(id: string) {
+    window.localStorage.setItem(storageKey, JSON.stringify(feedback));
+    setSavedCard({
+      id,
+      time: new Intl.DateTimeFormat("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date()),
+    });
+  }
+
+  return (
+    <section className="space-y-5">
+      <div className="rounded-xl border border-[#f5b4cf] bg-white/95 p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-bold text-[#ef3e8f]">AI Planning Workspace</p>
+            <h2 className="mt-1 text-xl font-bold">วางแผนจากผล AI รายโรงงาน</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              ใช้ค่า AI เป็นจุดตั้งต้นให้ทีมวางแผนโรงงานเลือกแนวทาง ปรับตัวเลข และบันทึกเหตุผล
+            </p>
+          </div>
+          <span className="rounded-md bg-[#ffe8f1] px-3 py-1 text-sm font-bold text-[#ef3e8f]">
+            {factoryPlans.length.toLocaleString("th-TH")} โรงงาน
+          </span>
+        </div>
+        <div className="grid gap-3 xl:grid-cols-4">
+          <TransferFilterBox label="สัปดาห์" options={weeks} values={activeWeekFilters} onChange={setWeekFilters} />
+          <TransferFilterBox label="โรงงาน" options={factories} values={factoryFilters} onChange={setFactoryFilters} />
+          <TransferFilterBox label="กลุ่มข้อมูล" options={sheets} values={sheetFilters} onChange={setSheetFilters} />
+          <TransferFilterBox label="ตัวชี้วัด" options={metrics} values={metricFilters} onChange={setMetricFilters} />
+        </div>
+      </div>
+
+      <div className="grid gap-5">
+        {factoryPlans.map(({ factoryName, highlights, records: factoryRecords }) => {
+          const feedbackId = `planning|${factoryName}|${activeWeekFilters.join(",") || "all"}`;
+          const currentFeedback = feedback[feedbackId] ?? { actual: "", accuracy: "", comment: "" };
+
+          return (
+            <div key={factoryName} className="rounded-xl border border-[#e3e8f0] bg-white/95 p-5 shadow-sm">
+              <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h3 className="text-lg font-bold">{factoryName}</h3>
+                  <p className="text-sm text-slate-500">
+                    สัปดาห์ {activeWeekFilters.join(", ") || "-"} · {factoryRecords.length.toLocaleString("th-TH")} ตัวชี้วัดจาก AI
+                  </p>
+                </div>
+                <span className="rounded-md bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">
+                  ใช้ผล AI เป็นแผนตั้งต้น
+                </span>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {highlights.map((record) => (
+                  <div key={record.id} className="rounded-lg border border-[#edf1f6] bg-[#f8fafc] p-4">
+                    <p className="line-clamp-2 text-sm font-bold">{record.metric}</p>
+                    <p className="mt-2 text-2xl font-bold text-[#172033]">{formatNumber(record.aiValue)}</p>
+                    <p className="mt-1 text-xs text-slate-500">{record.sheet}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 grid gap-4 xl:grid-cols-[0.8fr_1fr_1fr]">
+                <label className="block text-sm font-bold">
+                  แนวทางที่จะใช้
+                  <select
+                    className="mt-2 h-11 w-full rounded-md border border-[#dfe6ef] bg-white px-3 text-sm font-semibold outline-none focus:border-[#ef3e8f]"
+                    value={currentFeedback.accuracy}
+                    onChange={(event) => updateFeedback(feedbackId, { accuracy: event.target.value })}
+                  >
+                    <option value="">เลือกแนวทาง</option>
+                    <option value="ใช้ตาม AI">ใช้ตาม AI</option>
+                    <option value="ปรับจาก AI">ปรับจาก AI</option>
+                    <option value="ใช้แผนเดิม">ใช้แผนเดิม</option>
+                    <option value="รอตรวจสอบเพิ่ม">รอตรวจสอบเพิ่ม</option>
+                  </select>
+                </label>
+                <label className="block text-sm font-bold">
+                  ตัวเลข/เป้าหมายที่วางแผน
+                  <input
+                    className="mt-2 h-11 w-full rounded-md border border-[#dfe6ef] px-3 text-sm font-normal outline-none focus:border-[#ef3e8f]"
+                    placeholder="เช่น ใช้ Total Supply ตาม AI หรือปรับเป็น..."
+                    value={currentFeedback.actual}
+                    onChange={(event) => updateFeedback(feedbackId, { actual: event.target.value })}
+                  />
+                </label>
+                <label className="block text-sm font-bold">
+                  หมายเหตุแผน
+                  <input
+                    className="mt-2 h-11 w-full rounded-md border border-[#dfe6ef] px-3 text-sm font-normal outline-none focus:border-[#ef3e8f]"
+                    placeholder="เหตุผล/ข้อจำกัด/สิ่งที่ต้องติดตาม"
+                    value={currentFeedback.comment}
+                    onChange={(event) => updateFeedback(feedbackId, { comment: event.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                {savedCard?.id === feedbackId ? (
+                  <span className="text-xs font-bold text-emerald-600">บันทึกแล้ว {savedCard.time}</span>
+                ) : null}
+                <button
+                  type="button"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#ef3e8f] px-4 text-sm font-bold text-white shadow-sm hover:bg-[#dc2e81]"
+                  onClick={() => savePlanCard(feedbackId)}
+                >
+                  <Save size={16} />
+                  บันทึกแผนโรงงานนี้
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {factoryPlans.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#f5b4cf] bg-white/90 p-8 text-center text-slate-500">
+            ยังไม่พบข้อมูลผล AI ตามตัวกรอง
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function planningMetricPriority(metric: string) {
+  const priorities = [
+    "จำนวนหมูเข้าตัดแต่ง",
+    "Production",
+    "Total Supply",
+    "Quota",
+    "ของขาด",
+    "ของเหลือ",
+    "Transfer in",
+    "Transfer out",
+    "กำไร/ขาดทุน",
+  ];
+  const index = priorities.findIndex((item) => metric.toLowerCase().includes(item.toLowerCase()));
+  return index === -1 ? priorities.length : index;
 }
 
 function PlanDataEmptyState() {
