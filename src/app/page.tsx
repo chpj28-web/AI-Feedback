@@ -134,6 +134,18 @@ type UnifiedPlanningRow = {
   aiShortageSurplus: number | null;
 };
 
+type UnifiedPlanningNumberField = keyof Pick<
+  UnifiedPlanningRow,
+  | "aiProduction"
+  | "aiStock"
+  | "aiTransferIn"
+  | "aiTransferOut"
+  | "aiTotalSupply"
+  | "aiFcTotal"
+  | "aiQtTotal"
+  | "aiShortageSurplus"
+>;
+
 type AiData = {
   generatedAt: string;
   sourceFile: string;
@@ -258,6 +270,7 @@ const rememberedFeedbackMetrics: Record<string, string[]> = {
     "กำไร/ขาดทุนต่อหน่วย (Baht/kg)",
     "คาดการณ์ยอดขาย (Baht)",
     "กำไร/ขาดทุน รวม (Baht)",
+    "% VDP",
   ],
   "4. โอน": [
     "SourceWarehouseForPlan1",
@@ -300,6 +313,7 @@ const balanceFactoryMetricMap: Record<string, string[]> = {
 const balanceProductMetricMap: Record<string, string[]> = {
   "Yield FG Adjust": ["% Actual Yield", "% Actual Yield"],
   "%Yield FG": ["% Actual Yield"],
+  "% VDP": ["% VDP"],
   "ผลิต": ["Production (kg)"],
   "stock": ["Stock ยกมา (kg)"],
   "รับโอน": ["Transfer in (kg)"],
@@ -2733,10 +2747,11 @@ function PlanningPanel({
           [
             ...templateRows.map((record) => record.product),
             ...aiPlanRows.map((record) => record.productGroup).filter(Boolean),
+            ...(aiRecords.length > 0 ? ["รวมจากไฟล์ผล AI"] : []),
           ].filter(Boolean),
         ),
       ).sort((a, b) => a.localeCompare(b, "th")),
-    [aiPlanRows, templateRows],
+    [aiPlanRows, aiRecords, templateRows],
   );
   const selectedTemplateRows = templateRows.filter(
     (record) =>
@@ -2749,7 +2764,13 @@ function PlanningPanel({
       (!selectedFactory || record.factory === selectedFactory) &&
       (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(record.week))),
   );
-  const planningRows = buildUnifiedPlanningRows(selectedTemplateRows, selectedAiRows).filter((row) => {
+  const selectedRawAiRows = aiRecords.filter(
+    (record) =>
+      (!selectedFactory || record.factory === selectedFactory) &&
+      (activeWeekFilters.length === 0 ||
+        record.weeks.some((week) => activeWeekFilters.includes(normalizeWeek(week)))),
+  );
+  const planningRows = buildUnifiedPlanningRows(selectedTemplateRows, selectedAiRows, selectedRawAiRows).filter((row) => {
     const matchesProduct = productFilters.length === 0 || productFilters.includes(row.product);
     const status = unifiedPlanningStatus(row.aiShortageSurplus);
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(status);
@@ -2971,6 +2992,7 @@ function PlanningPanel({
 function buildUnifiedPlanningRows(
   templateRows: PlanningBalanceRow[],
   aiRows: BalanceRecord[],
+  rawAiRows: AiRecord[],
 ): UnifiedPlanningRow[] {
   const byProduct = new Map<string, UnifiedPlanningRow>();
 
@@ -2995,6 +3017,27 @@ function buildUnifiedPlanningRows(
     return current;
   }
 
+  function addMetricValue(current: UnifiedPlanningRow, metricText: string, value: number | null) {
+    if (value === null) return;
+    const metric = metricText.toLowerCase();
+    const setNumber = (field: UnifiedPlanningNumberField) => {
+      current[field] = (current[field] ?? 0) + value;
+    };
+
+    if (metric.includes("production") || metric.includes("ผลิต")) setNumber("aiProduction");
+    else if (metric.includes("stock") || metric.includes("ยกมา")) setNumber("aiStock");
+    else if (metric.includes("transfer in") || metric.includes("รับโอน")) setNumber("aiTransferIn");
+    else if (metric.includes("transfer out") || metric.includes("โอนออก")) setNumber("aiTransferOut");
+    else if (metric.includes("total supply")) setNumber("aiTotalSupply");
+    else if (metric.includes("fc total") || metric === "fc" || metric.includes("คาดการณ์ยอดขาย")) {
+      setNumber("aiFcTotal");
+    } else if (metric.includes("qt total") || metric.includes("quota")) {
+      setNumber("aiQtTotal");
+    } else if (metric.includes("ขาด") || metric.includes("เหลือ") || metric.includes("shortage")) {
+      setNumber("aiShortageSurplus");
+    }
+  }
+
   for (const row of templateRows) {
     const current = ensure(row.product);
     current.sap = current.sap || row.sap;
@@ -3003,32 +3046,13 @@ function buildUnifiedPlanningRows(
 
   for (const row of aiRows) {
     const current = ensure(row.productGroup);
-    const value = row.aiValue;
-    const metric = row.metric.toLowerCase();
-    const setNumber = (field: keyof Pick<
-      UnifiedPlanningRow,
-      | "aiProduction"
-      | "aiStock"
-      | "aiTransferIn"
-      | "aiTransferOut"
-      | "aiTotalSupply"
-      | "aiFcTotal"
-      | "aiQtTotal"
-      | "aiShortageSurplus"
-    >) => {
-      if (value === null) return;
-      current[field] = (current[field] ?? 0) + value;
-    };
+    addMetricValue(current, row.metric, row.aiValue);
+  }
 
-    if (metric.includes("ผลิต")) setNumber("aiProduction");
-    else if (metric.includes("stock")) setNumber("aiStock");
-    else if (metric.includes("รับโอน") || metric.includes("transfer in")) setNumber("aiTransferIn");
-    else if (metric.includes("transfer out") || metric.includes("โอนออก")) setNumber("aiTransferOut");
-    else if (metric.includes("total supply")) setNumber("aiTotalSupply");
-    else if (metric.includes("fc total") || metric === "fc") setNumber("aiFcTotal");
-    else if (metric.includes("qt total") || metric.includes("quota")) setNumber("aiQtTotal");
-    else if (metric.includes("ขาด") || metric.includes("เหลือ") || metric.includes("shortage")) {
-      setNumber("aiShortageSurplus");
+  if (rawAiRows.length > 0) {
+    const current = ensure("รวมจากไฟล์ผล AI");
+    for (const row of rawAiRows) {
+      addMetricValue(current, row.metric, row.aiValue);
     }
   }
 
@@ -3046,7 +3070,11 @@ function buildUnifiedPlanningRows(
         row.aiShortageSurplus,
       ].some((value) => value !== null),
     )
-    .sort((a, b) => a.product.localeCompare(b.product, "th"));
+    .sort((a, b) => {
+      if (a.product === "รวมจากไฟล์ผล AI") return -1;
+      if (b.product === "รวมจากไฟล์ผล AI") return 1;
+      return a.product.localeCompare(b.product, "th");
+    });
 }
 
 function unifiedPlanningStatus(value: number | null) {
@@ -3476,15 +3504,20 @@ function AnalyzeVdpPanel({
       (factoryFilter.length === 0 || factoryFilter.includes(row.factory)),
   );
   const productRows = filteredRows.filter((row) => row.tableType === "product-group");
-  const factorySummaries = summarizeVdpBy(productRows, "factory");
+  const directAiVdpByFactory = getAiVdpByFactory(aiData, activeWeekFilters, factoryFilter);
+  const factorySummaries = applyDirectAiVdpToFactorySummaries(
+    summarizeVdpBy(productRows, "factory"),
+    directAiVdpByFactory,
+  );
   const productSummaries = summarizeVdpBy(productRows, "productGroup");
-  const total = summarizeVdpRows(productRows, "รวมทั้งหมด");
+  const directAiVdp = averageValues([...directAiVdpByFactory.values()]);
+  const total = applyDirectAiVdp(summarizeVdpRows(productRows, "รวมทั้งหมด"), directAiVdp);
   const topProducts = productSummaries.slice(0, 10);
   const vdpDiff = total.aiVdp - total.balanceVdp;
   const shortageDiff = total.aiShortage - total.balanceShortage;
   const surplusDiff = total.aiSurplus - total.balanceSurplus;
   const supplyDiff = total.aiSupply - total.balanceSupply;
-  const profitImpact = (vdpDiff / 100) * Math.max(total.balanceSupply, 1);
+  const aiProfit = sumAiProfit(aiData, activeWeekFilters, factoryFilter);
   const dimensionSummaries = [
     {
       label: "%VDP",
@@ -3524,12 +3557,12 @@ function AnalyzeVdpPanel({
     },
     {
       label: "กำไร",
-      better: profitImpact >= 0 ? "AI" : "แผน",
-      rule: "ประมาณจากส่วนต่าง %VDP",
-      ai: formatCompact(profitImpact),
-      balance: "รอข้อมูลราคาขาย/ต้นทุน",
-      diff: formatSigned(profitImpact),
-      tone: profitImpact >= 0 ? "green" : "red",
+      better: aiProfit >= 0 ? "AI มีกำไร" : "AI ขาดทุน",
+      rule: "อ่านจาก กำไร/ขาดทุน รวม (Baht) ในไฟล์ AI",
+      ai: `${formatCompact(aiProfit)} บาท`,
+      balance: "ยังไม่มีคอลัมน์กำไรในไฟล์แผน",
+      diff: formatSigned(aiProfit),
+      tone: aiProfit >= 0 ? "green" : "red",
     },
   ] as const;
 
@@ -3968,6 +4001,69 @@ function summarizeVdpRows(rows: BalanceRecord[], name: string): VdpSummary {
   };
 }
 
+function getAiVdpByFactory(aiData: AiData | null, weeks: string[], factories: string[]) {
+  const grouped = new Map<string, number[]>();
+  if (!aiData) return new Map<string, number>();
+
+  aiData.records.forEach((record) => {
+    const metric = record.metric.toLowerCase();
+    const isVdp = metric.includes("vdp");
+    const matchesWeek = weeks.length === 0 || record.weeks.some((week) => weeks.includes(normalizeWeek(week)));
+    const matchesFactory = factories.length === 0 || factories.includes(record.factory);
+    const value = record.average ?? record.aiValue;
+    if (record.kind !== "number" || !isVdp || !matchesWeek || !matchesFactory || value === null) return;
+
+    const current = grouped.get(record.factory) ?? [];
+    current.push(normalizePercentValue(value));
+    grouped.set(record.factory, current);
+  });
+
+  return new Map([...grouped.entries()].map(([factory, values]) => [factory, averageValues(values) ?? 0]));
+}
+
+function applyDirectAiVdpToFactorySummaries(summaries: VdpSummary[], directVdp: Map<string, number>) {
+  const merged = new Map(summaries.map((summary) => [summary.name, applyDirectAiVdp(summary, directVdp.get(summary.name) ?? null)]));
+
+  directVdp.forEach((vdp, factory) => {
+    if (merged.has(factory)) return;
+    merged.set(factory, {
+      name: factory,
+      aiSupply: 0,
+      balanceSupply: 0,
+      aiShortage: 0,
+      balanceShortage: 0,
+      aiSurplus: 0,
+      balanceSurplus: 0,
+      aiVdp: vdp,
+      balanceVdp: 0,
+      severity: Math.abs(vdp),
+    });
+  });
+
+  return [...merged.values()].sort((a, b) => b.severity - a.severity);
+}
+
+function applyDirectAiVdp(summary: VdpSummary, directVdp: number | null) {
+  if (directVdp === null) return summary;
+  return {
+    ...summary,
+    aiVdp: directVdp,
+    severity:
+      Math.abs(directVdp - summary.balanceVdp) +
+      Math.abs(summary.aiShortage - summary.balanceShortage) / 100 +
+      Math.abs(summary.aiSurplus - summary.balanceSurplus) / 100,
+  };
+}
+
+function normalizePercentValue(value: number) {
+  return Math.abs(value) <= 1 ? value * 100 : value;
+}
+
+function averageValues(values: number[]) {
+  if (values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
 function addShortageSurplus(
   summary: {
     aiShortage: number;
@@ -3991,6 +4087,20 @@ function addShortageSurplus(
 function computeVdp(supply: number, shortage: number) {
   if (supply <= 0) return 0;
   return Math.max(0, Math.min(100, ((supply - shortage) / supply) * 100));
+}
+
+function sumAiProfit(aiData: AiData | null, weeks: string[], factories: string[]) {
+  if (!aiData) return 0;
+
+  return aiData.records
+    .filter((record) => {
+      const metric = record.metric.toLowerCase();
+      const isTotalProfit = metric.includes("กำไร/ขาดทุน รวม") || metric.includes("profit total");
+      const matchesWeek = weeks.length === 0 || record.weeks.some((week) => weeks.includes(normalizeWeek(week)));
+      const matchesFactory = factories.length === 0 || factories.includes(record.factory);
+      return record.kind === "number" && isTotalProfit && matchesWeek && matchesFactory;
+    })
+    .reduce((sum, record) => sum + (record.aiValue ?? 0), 0);
 }
 
 function sumBalanceMetric(rows: BalanceRecord[], metric: string, field: "aiValue" | "balanceValue") {
