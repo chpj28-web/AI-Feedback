@@ -238,7 +238,7 @@ type TransferActualPayload = Record<
 
 const allSheets = "ทั้งหมด";
 const storageKey = "ai-feedback-review-v1";
-const uploadedDataKey = "ai-feedback-uploaded-ai-data-v2";
+const uploadedDataKey = "ai-feedback-uploaded-ai-data-v3";
 const uploadedActualKey = "ai-feedback-uploaded-actual-feedback-v2";
 const uploadedActualTransferKey = "ai-feedback-uploaded-actual-transfer-v1";
 const uploadedBalanceComparisonKey = "ai-feedback-uploaded-balance-comparison-v1";
@@ -3557,12 +3557,12 @@ function AnalyzeVdpPanel({
     },
     {
       label: "กำไร",
-      better: aiProfit >= 0 ? "AI มีกำไร" : "AI ขาดทุน",
+      better: aiProfit.hasData ? (aiProfit.value >= 0 ? "AI มีกำไร" : "AI ขาดทุน") : "ยังไม่พบข้อมูล",
       rule: "อ่านจาก กำไร/ขาดทุน รวม (Baht) ในไฟล์ AI",
-      ai: `${formatCompact(aiProfit)} บาท`,
+      ai: aiProfit.hasData ? `${formatCompact(aiProfit.value)} บาท` : "ไม่พบในไฟล์ AI/สัปดาห์ที่เลือก",
       balance: "ยังไม่มีคอลัมน์กำไรในไฟล์แผน",
-      diff: formatSigned(aiProfit),
-      tone: aiProfit >= 0 ? "green" : "red",
+      diff: aiProfit.hasData ? formatSigned(aiProfit.value) : "-",
+      tone: aiProfit.hasData && aiProfit.value >= 0 ? "green" : "red",
     },
   ] as const;
 
@@ -4090,17 +4090,28 @@ function computeVdp(supply: number, shortage: number) {
 }
 
 function sumAiProfit(aiData: AiData | null, weeks: string[], factories: string[]) {
-  if (!aiData) return 0;
+  if (!aiData) return { value: 0, hasData: false };
 
-  return aiData.records
-    .filter((record) => {
-      const metric = record.metric.toLowerCase();
-      const isTotalProfit = metric.includes("กำไร/ขาดทุน รวม") || metric.includes("profit total");
-      const matchesWeek = weeks.length === 0 || record.weeks.some((week) => weeks.includes(normalizeWeek(week)));
-      const matchesFactory = factories.length === 0 || factories.includes(record.factory);
-      return record.kind === "number" && isTotalProfit && matchesWeek && matchesFactory;
-    })
-    .reduce((sum, record) => sum + (record.aiValue ?? 0), 0);
+  const records = aiData.records.filter((record) => {
+    const isTotalProfit = isTotalProfitMetric(record.metric);
+    const matchesWeek = weeks.length === 0 || record.weeks.some((week) => weeks.includes(normalizeWeek(week)));
+    const matchesFactory = factories.length === 0 || factories.includes(record.factory);
+    return record.kind === "number" && isTotalProfit && matchesWeek && matchesFactory;
+  });
+
+  return {
+    value: records.reduce((sum, record) => sum + (record.aiValue ?? 0), 0),
+    hasData: records.length > 0,
+  };
+}
+
+function isTotalProfitMetric(metric: string) {
+  const normalized = metric.toLowerCase().replace(/\s+/g, "");
+  return (
+    (normalized.includes("กำไร") && normalized.includes("ขาดทุน") && normalized.includes("รวม")) ||
+    normalized.includes("profittotal") ||
+    normalized.includes("totalprofit")
+  );
 }
 
 function sumBalanceMetric(rows: BalanceRecord[], metric: string, field: "aiValue" | "balanceValue") {
