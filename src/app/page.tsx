@@ -4092,12 +4092,15 @@ function computeVdp(supply: number, shortage: number) {
 function sumAiProfit(aiData: AiData | null, weeks: string[], factories: string[]) {
   if (!aiData) return { value: 0, hasData: false };
 
-  const records = aiData.records.filter((record) => {
+  const matchingFactoryRecords = aiData.records.filter((record) => {
     const isTotalProfit = isTotalProfitMetric(record.metric);
-    const matchesWeek = weeks.length === 0 || record.weeks.some((week) => weeks.includes(normalizeWeek(week)));
     const matchesFactory = factories.length === 0 || factories.includes(record.factory);
-    return record.kind === "number" && isTotalProfit && matchesWeek && matchesFactory;
+    return record.kind === "number" && isTotalProfit && matchesFactory;
   });
+  const weekMatchedRecords = matchingFactoryRecords.filter(
+    (record) => weeks.length === 0 || record.weeks.some((week) => weeks.includes(normalizeWeek(week))),
+  );
+  const records = weekMatchedRecords.length > 0 ? weekMatchedRecords : matchingFactoryRecords;
 
   return {
     value: records.reduce((sum, record) => sum + (record.aiValue ?? 0), 0),
