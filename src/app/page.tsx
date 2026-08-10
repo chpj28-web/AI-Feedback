@@ -1789,6 +1789,7 @@ export default function Home() {
           <div className="space-y-5 px-4 py-5 sm:px-8">
             {activeTab === "planning" ? (
               <PlanningPanel
+                key={data ? `${data.sourceFile}|${data.generatedAt}|${data.records.length}` : "no-ai-data"}
                 data={data}
                 balanceData={balanceData}
                 planningData={planningBalanceData}
@@ -2703,16 +2704,16 @@ function PlanningPanel({
   const [productFilters, setProductFilters] = useState<string[]>([]);
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [savedCard, setSavedCard] = useState<{ id: string; time: string } | null>(null);
+
   const weeks = useMemo(
     () =>
       Array.from(
         new Set(
-          (aiPlanRows.length > 0
-            ? aiPlanRows.map((row) => row.week)
-            : templateRows.length > 0
-              ? templateRows.map((row) => row.week)
-            : aiRecords.flatMap((record) => record.weeks)
-          )
+          [
+            ...aiRecords.flatMap((record) => record.weeks),
+            ...aiPlanRows.map((row) => row.week),
+            ...templateRows.map((row) => row.week),
+          ]
             .map((item) => normalizeWeek(item))
             .filter(Boolean),
         ),
@@ -2764,12 +2765,14 @@ function PlanningPanel({
       (!selectedFactory || record.factory === selectedFactory) &&
       (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(record.week))),
   );
-  const selectedRawAiRows = aiRecords.filter(
+  const rawAiRowsForFactory = aiRecords.filter((record) => !selectedFactory || record.factory === selectedFactory);
+  const weekMatchedRawAiRows = rawAiRowsForFactory.filter(
     (record) =>
-      (!selectedFactory || record.factory === selectedFactory) &&
-      (activeWeekFilters.length === 0 ||
-        record.weeks.some((week) => activeWeekFilters.includes(normalizeWeek(week)))),
+      activeWeekFilters.length === 0 ||
+      record.weeks.length === 0 ||
+      record.weeks.some((week) => activeWeekFilters.includes(normalizeWeek(week))),
   );
+  const selectedRawAiRows = weekMatchedRawAiRows.length > 0 ? weekMatchedRawAiRows : rawAiRowsForFactory;
   const planningRows = buildUnifiedPlanningRows(selectedTemplateRows, selectedAiRows, selectedRawAiRows).filter((row) => {
     const matchesProduct = productFilters.length === 0 || productFilters.includes(row.product);
     const status = unifiedPlanningStatus(row.aiShortageSurplus);
