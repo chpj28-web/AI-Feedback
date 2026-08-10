@@ -1791,7 +1791,6 @@ export default function Home() {
               <PlanningPanel
                 key={data ? `${data.sourceFile}|${data.generatedAt}|${data.records.length}` : "no-ai-data"}
                 data={data}
-                balanceData={balanceData}
                 planningData={planningBalanceData}
                 feedback={feedback}
                 updateFeedback={updateFeedback}
@@ -2685,20 +2684,18 @@ function CommentCard({
 
 function PlanningPanel({
   data,
-  balanceData,
   planningData,
   feedback,
   updateFeedback,
 }: {
   data: AiData | null;
-  balanceData: BalanceData | null;
   planningData: PlanningBalanceData | null;
   feedback: Record<string, Feedback>;
   updateFeedback: (id: string, patch: Partial<Feedback>) => void;
 }) {
   const templateRows = useMemo(() => planningData?.records ?? [], [planningData]);
-  const aiPlanRows = useMemo(() => dedupeBalanceRows(balanceData?.records ?? []), [balanceData]);
   const aiRecords = useMemo(() => (data?.records ?? []).filter((record) => !isTransferRecord(record)), [data]);
+  const transferRecords = useMemo(() => data?.transferRecords ?? [], [data]);
   const [weekFilters, setWeekFilters] = useState<string[]>([]);
   const [factoryFilter, setFactoryFilter] = useState("");
   const [productFilters, setProductFilters] = useState<string[]>([]);
@@ -2711,15 +2708,14 @@ function PlanningPanel({
         new Set(
           [
             ...aiRecords.flatMap((record) => record.weeks),
-            ...aiPlanRows.map((row) => row.week),
-            ...templateRows.map((row) => row.week),
+            ...transferRecords.flatMap((record) => record.weeks),
           ]
             .map((item) => normalizeWeek(item))
             .filter(Boolean),
         ),
       )
         .sort((a, b) => Number(b) - Number(a)),
-    [aiPlanRows, aiRecords, templateRows],
+    [aiRecords, transferRecords],
   );
   const activeWeekFilters =
     weekFilters.length > 0 && weekFilters.every((item) => weeks.includes(item))
@@ -2732,13 +2728,13 @@ function PlanningPanel({
       Array.from(
         new Set(
           [
-            ...aiPlanRows.map((record) => record.factory),
-            ...templateRows.map((record) => record.factory),
             ...aiRecords.map((record) => record.factory),
+            ...transferRecords.map((record) => record.source),
+            ...transferRecords.map((record) => record.destination),
           ].filter(Boolean),
         ),
       ).sort((a, b) => a.localeCompare(b, "th")),
-    [aiPlanRows, aiRecords, templateRows],
+    [aiRecords, transferRecords],
   );
   const selectedFactory = factoryFilter && factories.includes(factoryFilter) ? factoryFilter : (factories[0] ?? "");
   const products = useMemo(
@@ -2747,21 +2743,14 @@ function PlanningPanel({
         new Set(
           [
             ...templateRows.map((record) => record.product),
-            ...aiPlanRows.map((record) => record.productGroup).filter(Boolean),
             ...(aiRecords.length > 0 ? ["รวมจากไฟล์ผล AI"] : []),
           ].filter(Boolean),
         ),
       ).sort((a, b) => a.localeCompare(b, "th")),
-    [aiPlanRows, aiRecords, templateRows],
+    [aiRecords, templateRows],
   );
   const selectedTemplateRows = templateRows.filter(
     (record) =>
-      (!selectedFactory || record.factory === selectedFactory) &&
-      (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(record.week))),
-  );
-  const selectedAiRows = aiPlanRows.filter(
-    (record) =>
-      record.tableType === "product-group" &&
       (!selectedFactory || record.factory === selectedFactory) &&
       (activeWeekFilters.length === 0 || activeWeekFilters.includes(normalizeWeek(record.week))),
   );
@@ -2773,12 +2762,22 @@ function PlanningPanel({
       record.weeks.some((week) => activeWeekFilters.includes(normalizeWeek(week))),
   );
   const selectedRawAiRows = weekMatchedRawAiRows.length > 0 ? weekMatchedRawAiRows : rawAiRowsForFactory;
-  const planningRows = buildUnifiedPlanningRows(selectedTemplateRows, selectedAiRows, selectedRawAiRows).filter((row) => {
+  const planningRows = buildUnifiedPlanningRows(selectedTemplateRows, [], selectedRawAiRows).filter((row) => {
     const matchesProduct = productFilters.length === 0 || productFilters.includes(row.product);
     const status = unifiedPlanningStatus(row.aiShortageSurplus);
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(status);
     return matchesProduct && matchesStatus;
   });
+  const transferRowsForFactory = transferRecords.filter(
+    (record) => !selectedFactory || record.source === selectedFactory || record.destination === selectedFactory,
+  );
+  const weekMatchedTransferRows = transferRowsForFactory.filter(
+    (record) =>
+      activeWeekFilters.length === 0 ||
+      record.weeks.length === 0 ||
+      record.weeks.some((week) => activeWeekFilters.includes(normalizeWeek(week))),
+  );
+  const selectedTransferRows = weekMatchedTransferRows.length > 0 ? weekMatchedTransferRows : transferRowsForFactory;
   const totalAiProduction = planningRows.reduce((sum, row) => sum + (row.aiProduction ?? 0), 0);
   const totalAiShortage = planningRows.reduce((sum, row) => sum + Math.min(row.aiShortageSurplus ?? 0, 0), 0);
   const totalAiSurplus = planningRows.reduce((sum, row) => sum + Math.max(row.aiShortageSurplus ?? 0, 0), 0);
@@ -2928,6 +2927,70 @@ function PlanningPanel({
                       })}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-lg border border-[#f5b4cf] bg-[#fffafd] p-4">
+                <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h4 className="font-bold">แผนโอนจากผล AI</h4>
+                    <p className="text-sm text-slate-500">
+                      ชีท 4-5 · {selectedTransferRows.length.toLocaleString("th-TH")} รายการที่เกี่ยวข้องกับโรงงานนี้
+                    </p>
+                  </div>
+                  <span className="rounded-md bg-white px-3 py-1 text-xs font-bold text-[#ef3e8f]">
+                    Source / Destination
+                  </span>
+                </div>
+                <div className="mobile-table-frame rounded-lg border border-[#ffd1e3] bg-white">
+                  <div className="mobile-table-scroll max-h-[360px] overflow-auto">
+                    <table className="w-full min-w-[1080px] border-collapse text-sm">
+                      <thead className="bg-[#fff7fb] text-xs font-bold text-slate-600">
+                        <tr>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-left">ต้นทาง</th>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-left">ปลายทาง</th>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-left">กลุ่มสินค้า</th>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-left">ชนิดสินค้า</th>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-right">AI แนะนำโอน</th>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-right">แผนโอนเดิม</th>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-right">รถ 4W</th>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-right">รถ 6W</th>
+                          <th className="border-r border-[#ffd1e3] px-3 py-3 text-right">รถ 10W</th>
+                          <th className="px-3 py-3 text-left">หมายเหตุ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedTransferRows.map((row) => {
+                          const rowFeedbackId = `planning-transfer|${selectedFactory}|${activeWeekFilters.join(",")}|${row.id}`;
+                          const rowFeedback = feedback[rowFeedbackId] ?? { actual: "", accuracy: "", comment: "" };
+                          return (
+                            <tr key={rowFeedbackId} className="border-t border-[#ffd1e3]">
+                              <td className="border-r border-[#ffe0ec] px-3 py-3 font-medium">{row.source}</td>
+                              <td className="border-r border-[#ffe0ec] px-3 py-3 font-medium">{row.destination}</td>
+                              <td className="border-r border-[#ffe0ec] px-3 py-3">{row.productGroup}</td>
+                              <td className="border-r border-[#ffe0ec] px-3 py-3">{row.productType}</td>
+                              <td className="border-r border-[#ffe0ec] px-3 py-3 text-right font-mono">{formatNumber(row.aiTransfer)}</td>
+                              <td className="border-r border-[#ffe0ec] px-3 py-3 text-right font-mono">{formatNumber(row.plannedTransfer)}</td>
+                              <td className="border-r border-[#ffe0ec] px-3 py-3 text-right font-mono">{formatNumber(row.fourWheel)}</td>
+                              <td className="border-r border-[#ffe0ec] px-3 py-3 text-right font-mono">{formatNumber(row.sixWheel)}</td>
+                              <td className="border-r border-[#ffe0ec] px-3 py-3 text-right font-mono">{formatNumber(row.tenWheel)}</td>
+                              <td className="px-3 py-3">
+                                <input
+                                  className="h-9 w-60 rounded-md border border-[#dfe6ef] px-3 text-sm outline-none focus:border-[#ef3e8f]"
+                                  placeholder="เหตุผล/ข้อจำกัด"
+                                  value={rowFeedback.comment}
+                                  onChange={(event) => updateFeedback(rowFeedbackId, { comment: event.target.value })}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {selectedTransferRows.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-slate-500">ยังไม่พบข้อมูลโอนของโรงงานนี้จากชีท 4-5</div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 
